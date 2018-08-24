@@ -46,16 +46,16 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
 
   implicit none
 
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)), INTENT(IN) :: ux1,uy1,uz1
   real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ux2,uy2,uz2 
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)), INTENT(IN) :: ux2,uy2,uz2 
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ux3,uy3,uz3
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)), INTENT(IN) :: ux3,uy3,uz3
   real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3
 
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: rho1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: rho2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: rho3
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)), INTENT(IN) :: rho1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)), INTENT(IN) :: rho2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)), INTENT(IN) :: rho3
 
   real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: divu1
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: divu2
@@ -95,18 +95,12 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
     !WORK X-PENCILS
     call derx (ta1,uy1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
     call derx (tb1,uz1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
-    call transpose_x_to_y(ux1,ux2)
-    call transpose_x_to_y(uy1,uy2)
-    call transpose_x_to_y(uz1,uz2)
     call transpose_x_to_y(ta1,ta2)
     call transpose_x_to_y(tb1,tb2)
     
     !WORK Y-PENCILS
     call dery (tc2,ux2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1) 
     call dery (td2,uz2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1) 
-    call transpose_y_to_z(ux2,ux3)
-    call transpose_y_to_z(uy2,uy3)
-    call transpose_y_to_z(uz2,uz3)
     call transpose_y_to_z(ta2,ta3)
     call transpose_y_to_z(tb2,tb3)
     call transpose_y_to_z(tc2,tc3)
@@ -148,14 +142,9 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
       tc1(:,:,:) = tc1(:,:,:) + uz1(:,:,:) * ux1(:,:,:) * tg1(:,:,:)
     endif
 
-    call transpose_x_to_y(ux1,ux2)
-    call transpose_x_to_y(uy1,uy2)
-    call transpose_x_to_y(uz1,uz2)
     call transpose_x_to_y(ta1,ta2)
     call transpose_x_to_y(tb1,tb2)
     call transpose_x_to_y(tc1,tc2)
-
-    call transpose_x_to_y(rho1,rho2)
     
     !WORK Y-PENCILS
     td2(:,:,:) = rho2(:,:,:) * ux2(:,:,:) * uy2(:,:,:)
@@ -181,14 +170,9 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
       tc2(:,:,:) = tc2(:,:,:) + uz2(:,:,:) * uy2(:,:,:) * th2(:,:,:)
     endif
 
-    call transpose_y_to_z(ux2,ux3)
-    call transpose_y_to_z(uy2,uy3)
-    call transpose_y_to_z(uz2,uz3)
     call transpose_y_to_z(ta2,ta3)
     call transpose_y_to_z(tb2,tb3)
     call transpose_y_to_z(tc2,tc3)
-
-    call transpose_y_to_z(rho2,rho3)
     
     !WORK Z-PENCILS
     td3(:,:,:) = rho3(:,:,:) * ux3(:,:,:) * uz3(:,:,:)
@@ -564,10 +548,13 @@ subroutine scalar(ux1,uy1,uz1,rho1,phi1,gamma1,phis1,phiss1,di1,ta1,tb1,tc1,td1,
 
   implicit none
 
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1,rho1,phi1,gamma1,phis1,&
-       phiss1,di1,ta1,tb1,tc1,td1,epsi
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: uy2,uz2,rho2,phi2,gamma2,di2,ta2,tb2,tc2,td2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: uz3,rho3,phi3,gamma3,di3,ta3,tb3,tc3
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)), INTENT(IN) :: ux1,uy1,uz1,rho1
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: phi1,gamma1,phis1,phiss1,di1,ta1,tb1,tc1,td1,&
+       epsi
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)), INTENT(IN) :: uy2,uz2,rho2
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: phi2,gamma2,di2,ta2,tb2,tc2,td2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)), INTENT(IN) :: uz3,rho3
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) ::phi3,gamma3,di3,ta3,tb3,tc3
 
   integer :: ijk,nvect1,nvect2,nvect3,i,j,k,nxyz
   real(mytype) :: x,y,z
@@ -591,9 +578,6 @@ subroutine scalar(ux1,uy1,uz1,rho1,phi1,gamma1,phis1,phiss1,di1,ta1,tb1,tc1,td1,
   endif
 
   call transpose_x_to_y(phi1,phi2)
-  call transpose_x_to_y(uy1,uy2)
-  call transpose_x_to_y(uz1,uz2)
-  call transpose_x_to_y(rho1,rho2)
 
   !Y PENCILS
   do ijk=1,nvect2
@@ -622,8 +606,6 @@ subroutine scalar(ux1,uy1,uz1,rho1,phi1,gamma1,phis1,phiss1,di1,ta1,tb1,tc1,td1,
   endif
 
   call transpose_y_to_z(phi2,phi3)
-  call transpose_y_to_z(uz2,uz3)
-  call transpose_y_to_z(rho2,rho3)
 
   !Z PENCILS
   do ijk=1,nvect3
@@ -749,16 +731,16 @@ SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
   
   IMPLICIT NONE
   
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ux1, uy1, uz1
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: rho1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, uy1, uz1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: rho1
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: di1, ta1, tb1, tc1, td1, epsi
   
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: uy2, uz2
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: rho2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: uy2, uz2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: rho2
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: di2, ta2, tb2, tc2, td2
   
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: uz3
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: rho3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: uz3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: rho3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: divu3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3
 
@@ -815,11 +797,6 @@ SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
   CALL derx (ta1, rho1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
   ta1(:,:,:) = (ux1(:,:,:) + us * egx) * ta1(:,:,:)
 
-  ! Go to Y
-  CALL transpose_x_to_y(rho1, rho2)
-  CALL transpose_x_to_y(uy1, uy2)
-  CALL transpose_x_to_y(uz1, uz2)
-
   !------------------------------------------------------------------------
   !Y PENCILS
   ! tb2 = diffusion
@@ -828,10 +805,6 @@ SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
   ! Advection term (non-conservative)
   CALL dery (ta2, rho2, di2, sy, ffyp, fsyp, fwyp, ppy, ysize(1), ysize(2), ysize(3), 1)
   ta2(:,:,:) = (uy2(:,:,:) + us * egy) * ta2(:,:,:)
-
-  ! Go to Z
-  CALL transpose_y_to_z(rho2, rho3)
-  CALL transpose_y_to_z(uz2, uz3)
 
   !------------------------------------------------------------------------
   ! Z PENCILS
@@ -883,16 +856,16 @@ SUBROUTINE convdiff_temperature(ux1, uy1, uz1, rho1, temperature1, di1, ta1, tb1
   
   IMPLICIT NONE
 
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ux1, uy1, uz1
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: temperature1, rho1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, uy1, uz1, rho1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: temperature1
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: di1, ta1, tb1
   
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: uy2, uz2
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: temperature2, rho2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: uy2, uz2, rho2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: temperature2
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: di2, ta2, tb2
   
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: uz3
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: temperature3, rho3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: uz3, rho3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: temperature3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3
 
   REAL(mytype) :: invpr
@@ -909,9 +882,6 @@ SUBROUTINE convdiff_temperature(ux1, uy1, uz1, rho1, temperature1, di1, ta1, tb1
 
   ! Go to Y
   CALL transpose_x_to_y(temperature1, temperature2)
-  CALL transpose_x_to_y(uy1, uy2)
-  CALL transpose_x_to_y(uz1, uz2)
-  CALL transpose_x_to_y(rho1, rho2)
 
   !----------------------------------------
   !Y PENCILS
@@ -920,8 +890,6 @@ SUBROUTINE convdiff_temperature(ux1, uy1, uz1, rho1, temperature1, di1, ta1, tb1
 
   ! Go to Z
   CALL transpose_y_to_z(temperature2, temperature3)
-  CALL transpose_y_to_z(uz2, uz3)
-  CALL transpose_y_to_z(rho2, rho3)
 
   !----------------------------------------
   ! Z PENCILS
@@ -958,15 +926,15 @@ SUBROUTINE convdiff_massfrac(ux1, uy1, uz1, rho1, massfrac1, massfracs1, massfra
   
   IMPLICIT NONE
 
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ux1, uy1, uz1, rho1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, uy1, uz1, rho1
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: massfrac1, massfracs1, massfracss1
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: di1, ta1, tb1, tc1
   
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: uy2, uz2, rho2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: uy2, uz2, rho2
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: massfrac2
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: di2, ta2, tb2, tc2
   
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: uz3, rho3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: uz3, rho3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: massfrac3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3, tc3
 
@@ -990,9 +958,6 @@ SUBROUTINE convdiff_massfrac(ux1, uy1, uz1, rho1, massfrac1, massfracs1, massfra
 
   ! Go to Y
   CALL transpose_x_to_y(massfrac1, massfrac2)
-  CALL transpose_x_to_y(uy1, uy2)
-  CALL transpose_x_to_y(uz1, uz2)
-  CALL transpose_x_to_y(rho1, rho2)
 
   !----------------------------------------
   !Y PENCILS
@@ -1003,8 +968,6 @@ SUBROUTINE convdiff_massfrac(ux1, uy1, uz1, rho1, massfrac1, massfracs1, massfra
 
   ! Go to Z
   CALL transpose_y_to_z(massfrac2, massfrac3)
-  CALL transpose_y_to_z(uz2, uz3)
-  CALL transpose_y_to_z(rho2, rho3)
 
   !----------------------------------------
   ! Z PENCILS

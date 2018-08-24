@@ -160,6 +160,12 @@ PROGRAM incompact3d
   !           rho3, ux3, uy3, uz3, ta3, tb3, tc3, di3)
   ! CALL calc_sedimentation(rho1, ta1, rho2, ta2, rho3, ta3)
 
+  !! Ensure variables are up to date
+  call updateXYZ(ux1, ux2, ux3, xsize, ysize, zsize, 1, 2, 3)
+  call updateXYZ(uy1, uy2, uy3, xsize, ysize, zsize, 1, 2, 3)
+  call updateXYZ(uz1, uz2, uz3, xsize, ysize, zsize, 1, 2, 3)
+  call updateXYZ(rho1, rho2, rho3, xsize, ysize, zsize, 1, 2, 3)
+
   tpoisstotal = 0._mytype
   do itime=ifirst,ilast
 
@@ -273,6 +279,7 @@ PROGRAM incompact3d
         !! Update density
         if (isolvetemp.eq.0) then
           call inttdensity(rho1,rhos1,rhoss1,rhos01,rhos001,tg1,drhodt1)
+          call updateXYZ(rho1, rho2, rho3, xsize, ysize, zsize, 1, 2, 3)
 
           ! Update temperature using EOS
           call calctemp_eos(temperature1, rho1, massfrac1, pressure0, xsize)
@@ -441,6 +448,9 @@ PROGRAM incompact3d
 
       !X PENCILS
       call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1) 
+      call updateXYZ(ux1, ux2, ux3, xsize, ysize, zsize, 1, 2, 3)
+      call updateXYZ(uy1, uy2, uy3, xsize, ysize, zsize, 1, 2, 3)
+      call updateXYZ(uz1, uz2, uz3, xsize, ysize, zsize, 1, 2, 3)
 
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
