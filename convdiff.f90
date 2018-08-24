@@ -720,9 +720,9 @@ end subroutine scalar
 !!              and transpose temperature array when we do this with
 !!              density anyway.
 !!--------------------------------------------------------------------
-SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
-     uy2, uz2, rho2, di2, ta2, tb2, tc2, td2, &
-     uz3, rho3, divu3, di3, ta3, tb3, &
+SUBROUTINE conv_density(ux1, rho1, di1, ta1, tb1, tc1, td1,&
+     uy2, rho2, di2, ta2, tb2, tc2, td2, &
+     uz3, rho3, divu3, di3, ta3, tb3, tc3, td3, &
      epsi)
   
   USE param
@@ -731,18 +731,15 @@ SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
   
   IMPLICIT NONE
   
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, uy1, uz1
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: rho1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, rho1
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: di1, ta1, tb1, tc1, td1, epsi
   
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: uy2, uz2
-  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: rho2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)), INTENT(IN) :: uy2, rho2
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: di2, ta2, tb2, tc2, td2
   
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: uz3
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: rho3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)), INTENT(IN) :: uz3, rho3
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: divu3
-  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3, tc3, td3
 
   REAL(mytype) :: invpe
 
@@ -788,33 +785,18 @@ SUBROUTINE conv_density(ux1, uy1, uz1, rho1, di1, ta1, tb1, tc1, td1,&
      egz = 0._mytype
   ENDIF
 
-  !------------------------------------------------------------------------
-  ! X PENCILS
-  ! tb1 = diffusion
-  ! ta1 = advection
+  !! Non-conservative advection
+  td1(:,:,:) = 1._mytype
+  td2(:,:,:) = 1._mytype
+  td3(:,:,:) = 1._mytype
+  CALL convect_scalarvariable(rho1, td1, ux1 + us * egx, ta1, tb1, tc1, di1,&
+       rho2, td2, uy2 + us * egy, ta2, tb2, tc2, di2, &
+       rho3, td3, uz3 + us * egz, ta3, tb3, tc3, di3, divu3, &
+       -2)
 
-  ! Advection term (non-conservative)
-  CALL derx (ta1, rho1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
-  ta1(:,:,:) = (ux1(:,:,:) + us * egx) * ta1(:,:,:)
+  !! divu / diffusion term
 
-  !------------------------------------------------------------------------
-  !Y PENCILS
-  ! tb2 = diffusion
-  ! ta2 = advection
-
-  ! Advection term (non-conservative)
-  CALL dery (ta2, rho2, di2, sy, ffyp, fsyp, fwyp, ppy, ysize(1), ysize(2), ysize(3), 1)
-  ta2(:,:,:) = (uy2(:,:,:) + us * egy) * ta2(:,:,:)
-
-  !------------------------------------------------------------------------
-  ! Z PENCILS
-  ! tb3 = diffusion
-  ! ta3 = advection
-
-  ! Advection term (non-conservative)
-  ! XXX Also adds contribution from divu3
-  CALL derz (ta3, rho3, di3, sz, ffzp, fszp, fwzp, zsize(1), zsize(2), zsize(3), 1)
-  ta3(:,:,:) = (uz3(:,:,:) + us * egz) * ta3(:,:,:) + rho3(:,:,:) * divu3(:,:,:)
+  ta3(:,:,:) = ta3(:,:,:) + rho3(:,:,:) * divu3(:,:,:)
   
   ! call derzz (tb3,rho3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
   ! ta3(:,:,:) = ta3(:,:,:) - invpe * tb3(:,:,:)
