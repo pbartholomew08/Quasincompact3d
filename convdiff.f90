@@ -75,6 +75,7 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   real(mytype), parameter :: ONETHIRD = 1._mytype / 3._mytype
 
   logical :: entrain_y, entrain_z
+  logical :: expand_cross
 
   entrain_y = .FALSE.
   entrain_z = .FALSE.
@@ -86,6 +87,8 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
         entrain_z = .TRUE.
      endif
   endif
+
+  expand_cross = .TRUE. !! If true, expand cross-shear terms first
 
   nvect1=xsize(1)*xsize(2)*xsize(3)
   nvect2=ysize(1)*ysize(2)*ysize(3)
@@ -238,11 +241,15 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   tc3(:,:,:) = mu3(:,:,:) * tc3(:,:,:)
 
   if (ilmn.ne.0) then
-    !! Compute bulk shear contribution
-    ! tg3, th3, ti3 available as work vectors
-    ! TODO need to check ffzp, and whether last terms should be 1 or 0
-    call derz(tf3, divu3, di3, sz, ffz, fsz, fwz, zsize(1), zsize(2), zsize(3), 0)
-    tc3(:,:,:) = tc3(:,:,:) - 2._mytype * ONETHIRD * mu3(:,:,:) * tf3(:,:,:)
+     !! Compute bulk shear contribution
+     ! tg3, th3, ti3 available as work vectors
+     ! TODO need to check ffzp, and whether last terms should be 1 or 0
+     call derz(tf3, divu3, di3, sz, ffz, fsz, fwz, zsize(1), zsize(2), zsize(3), 0)
+     if (expand_cross) then
+        tc3(:,:,:) = tc3(:,:,:) + ONETHIRD * mu3(:,:,:) * tf3(:,:,:)
+     else
+        tc3(:,:,:) = tc3(:,:,:) - 2._mytype * ONETHIRD * mu3(:,:,:) * tf3(:,:,:)
+     endif
   endif
 
   !! XXX Transpose advection terms to make room for 2nd non-conservative diffusion
@@ -340,10 +347,14 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   tc2(:,:,:) = tc2(:,:,:) + mu2(:,:,:) * tf2(:,:,:)
 
   if (ilmn.ne.0) then
-    !! Compute bulk shear contribution
-    ! td2, te2, tf2 avaiable as work vectors
-    call dery(te2, divu2, di2, sy, ffy, fsy, fwy, ppy, ysize(1), ysize(2), ysize(3), 0)
-    tb2(:,:,:) = tb2(:,:,:) - 2._mytype * ONETHIRD * mu2(:,:,:) * te2(:,:,:)
+     !! Compute bulk shear contribution
+     ! td2, te2, tf2 avaiable as work vectors
+     call dery(te2, divu2, di2, sy, ffy, fsy, fwy, ppy, ysize(1), ysize(2), ysize(3), 0)
+     if (expand_cross) then
+        tb2(:,:,:) = tb2(:,:,:) + ONETHIRD * mu2(:,:,:) * te2(:,:,:)
+     else
+        tb2(:,:,:) = tb2(:,:,:) - 2._mytype * ONETHIRD * mu2(:,:,:) * te2(:,:,:)
+     endif
   endif
 
   IF (entrain_z.EQV..TRUE.) THEN
@@ -397,11 +408,15 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   tc1(:,:,:) = tc1(:,:,:) + mu1(:,:,:) * tf1(:,:,:)
 
   if (ilmn.ne.0) then
-    !! Compute bulk shear contribution
-    ! td1, te1, tf1 available as work vectors
-    ! TODO need to check ffzp, and whether last terms should be 1 or 0
-    call derx(td1, divu1, di1, sx, ffx, fsx, fwx, xsize(1), xsize(2), xsize(3), 0)
-    ta1(:,:,:) = ta1(:,:,:) - 2._mytype * ONETHIRD * mu1(:,:,:) * td1(:,:,:)
+     !! Compute bulk shear contribution
+     ! td1, te1, tf1 available as work vectors
+     ! TODO need to check ffzp, and whether last terms should be 1 or 0
+     call derx(td1, divu1, di1, sx, ffx, fsx, fwx, xsize(1), xsize(2), xsize(3), 0)
+     if (expand_cross) then
+        ta1(:,:,:) = ta1(:,:,:) + ONETHIRD * mu1(:,:,:) * td1(:,:,:)
+     else
+        ta1(:,:,:) = ta1(:,:,:) - 2._mytype * ONETHIRD * mu1(:,:,:) * td1(:,:,:)
+     endif
   endif
 
   !INTERMEDIATE SUM: DIFF TERMS + CONV TERMS
@@ -450,9 +465,15 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
     call derz(te3, th3, di3, sz, ffz, fsz, fwz, zsize(1), zsize(2), zsize(3), 0)
     call derz(tf3, tc3, di3, sz, ffzp, fszp, fwzp, zsize(1), zsize(2), zsize(3), 1)
 
-    td3(:,:,:) = mu3(:,:,:) * td3(:,:,:)
-    te3(:,:,:) = mu3(:,:,:) * te3(:,:,:)
-    tf3(:,:,:) = mu3(:,:,:) * tf3(:,:,:)
+    if (expand_cross) then
+       td3(:,:,:) = 0._mytype
+       te3(:,:,:) = 0._mytype
+       tf3(:,:,:) = 0._mytype
+    else
+       td3(:,:,:) = mu3(:,:,:) * td3(:,:,:)
+       te3(:,:,:) = mu3(:,:,:) * te3(:,:,:)
+       tf3(:,:,:) = mu3(:,:,:) * tf3(:,:,:)
+    endif
     
     if (iprops.ne.0) then
        !! Store dmudz in ti3
@@ -480,9 +501,15 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
     call dery(te2, tc2, di2, sy, ffyp, fsyp, fwyp, ppy, ysize(1), ysize(2), ysize(3), 1)
     call dery(tf2, tb2, di2, sy, ffy, fsy, fwy, ppy, ysize(1), ysize(2), ysize(3), 0)
 
-    td2(:,:,:) = mu2(:,:,:) * td2(:,:,:)
-    te2(:,:,:) = mu2(:,:,:) * te2(:,:,:)
-    tf2(:,:,:) = mu2(:,:,:) * tf2(:,:,:)
+    if (expand_cross) then
+       td2(:,:,:) = 0._mytype
+       te2(:,:,:) = 0._mytype
+       tf2(:,:,:) = 0._mytype
+    else
+       td2(:,:,:) = mu2(:,:,:) * td2(:,:,:)
+       te2(:,:,:) = mu2(:,:,:) * te2(:,:,:)
+       tf2(:,:,:) = mu2(:,:,:) * tf2(:,:,:)
+    endif
   
     td2(:,:,:) = td2(:,:,:) + tg2(:,:,:) ! td2 contains mu * (d2vdydx + d2wdzdx) + dmudz * dwdx
     te2(:,:,:) = te2(:,:,:) + th2(:,:,:) ! te2 contains mu * (d2vdydy + d2wdzdy) + dmudz * dwdy
@@ -520,9 +547,11 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
     call derx(tf1, ti1, di1, sx, ffx, fsx, fwx, xsize(1), xsize(2), xsize(3), 0)
   
     !! Finish off adding cross-stresses to shear stress
-    ta1(:,:,:) = ta1(:,:,:) + xnu * mu1(:,:,:) * td1(:,:,:)
-    tb1(:,:,:) = tb1(:,:,:) + xnu * mu1(:,:,:) * te1(:,:,:)
-    tc1(:,:,:) = tc1(:,:,:) + xnu * mu1(:,:,:) * tf1(:,:,:)
+    if (.not.expand_cross) then
+       ta1(:,:,:) = ta1(:,:,:) + xnu * mu1(:,:,:) * td1(:,:,:)
+       tb1(:,:,:) = tb1(:,:,:) + xnu * mu1(:,:,:) * te1(:,:,:)
+       tc1(:,:,:) = tc1(:,:,:) + xnu * mu1(:,:,:) * tf1(:,:,:)
+    endif
   
     if (iprops.ne.0) then
        !! Add dmudx * \nabla u to cross-shear
