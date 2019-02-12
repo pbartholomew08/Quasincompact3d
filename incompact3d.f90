@@ -55,6 +55,9 @@ PROGRAM incompact3d
 
   TYPE(DECOMP_INFO) :: phG,ph1,ph2,ph3,ph4
 
+  !! Do we want to do adjoints?
+  iadj_mode = .FALSE.
+
   CALL MPI_INIT(code)
   call decomp_2d_init(nx,ny,nz,p_row,p_col)
   !start from 1 == true
@@ -214,10 +217,17 @@ PROGRAM incompact3d
       endif
 
       !X-->Y-->Z-->Y-->X
-      call convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
-           ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
-           ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
-      call apply_grav(ta1, tb1, tc1, rho1)
+      if (.not.iadj_mode) then
+         call convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
+              ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
+              ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+         call apply_grav(ta1, tb1, tc1, rho1)
+      else
+         call convdiff(ux1,uy1,uz1,rho1,mu1,uxadj1,uyadj1,uzadj1,ta1,tb1,tc1,td1,&
+              te1,tf1,tg1,th1,ti1,di1,&
+              ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
+              ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+      endif
 
       ! Transport massfrac
       if (imulticomponent.ne.0) then
@@ -343,10 +353,17 @@ PROGRAM incompact3d
       endif
       
       !X-->Y-->Z
-      call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-           td2,te2,tf2,di2,ta2,tb2,tc2,&
-           ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
-           nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+      if (.not.iadj_mode) then
+         call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+              td2,te2,tf2,di2,ta2,tb2,tc2,&
+              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
+              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+      else
+         call divergence (uxadj1,uyadj1,uzadj1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+              td2,te2,tf2,di2,ta2,tb2,tc2,&
+              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
+              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+      endif
 
       !-----------------------------------------------------------------------------------
       ! Solution of the Poisson equation
@@ -435,17 +452,28 @@ PROGRAM incompact3d
       !-----------------------------------------------------------------------------------
 
       !X PENCILS
-      call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1) 
+      if (.not.iadj_mode) then
+         call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
+      else
+         call corgp(uxadj1,ux2,uyadj1,uzadj1,px1,py1,pz1,rho1)
+      endif
 
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
       !-----------------------------------------------------------------------------------
 
       !does not matter -->output=DIV U=0 (in dv3)
-      call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-           td2,te2,tf2,di2,ta2,tb2,tc2,&
-           ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
-           nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
+      if (.not.iadj_mode) then
+         call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+              td2,te2,tf2,di2,ta2,tb2,tc2,&
+              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
+              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
+      else
+         call divergence (uxadj1,uyadj1,uzadj1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+              td2,te2,tf2,di2,ta2,tb2,tc2,&
+              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
+              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
+      endif
 
       call test_speed_min_max(ux1,uy1,uz1)
       if (iscalar.eq.1) then
