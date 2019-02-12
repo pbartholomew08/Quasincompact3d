@@ -223,7 +223,7 @@ PROGRAM incompact3d
               ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
          call apply_grav(ta1, tb1, tc1, rho1)
       else
-         call convdiff(ux1,uy1,uz1,rho1,mu1,uxadj1,uyadj1,uzadj1,ta1,tb1,tc1,td1,&
+         call convdiff(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,&
               te1,tf1,tg1,th1,ti1,di1,&
               ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
               ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
@@ -353,17 +353,10 @@ PROGRAM incompact3d
       endif
       
       !X-->Y-->Z
-      if (.not.iadj_mode) then
-         call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-              td2,te2,tf2,di2,ta2,tb2,tc2,&
-              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
-              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
-      else
-         call divergence (uxadj1,uyadj1,uzadj1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-              td2,te2,tf2,di2,ta2,tb2,tc2,&
-              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
-              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
-      endif
+      call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+           td2,te2,tf2,di2,ta2,tb2,tc2,&
+           ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3,&
+           nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
 
       !-----------------------------------------------------------------------------------
       ! Solution of the Poisson equation
@@ -452,29 +445,18 @@ PROGRAM incompact3d
       !-----------------------------------------------------------------------------------
 
       !X PENCILS
-      if (.not.iadj_mode) then
-         call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
-      else
-         call corgp(uxadj1,ux2,uyadj1,uzadj1,px1,py1,pz1,rho1)
-      endif
+      call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
 
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
       !-----------------------------------------------------------------------------------
 
       !does not matter -->output=DIV U=0 (in dv3)
-      if (.not.iadj_mode) then
-         call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-              td2,te2,tf2,di2,ta2,tb2,tc2,&
-              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
-              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
-      else
-         call divergence (uxadj1,uyadj1,uzadj1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-              td2,te2,tf2,di2,ta2,tb2,tc2,&
-              ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
-              nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
-      endif
-
+      call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+           td2,te2,tf2,di2,ta2,tb2,tc2,&
+           ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
+           nxmsize,nymsize,nzmsize,ph1,ph3,ph4,2,.FALSE.)
+      
       call test_speed_min_max(ux1,uy1,uz1)
       if (iscalar.eq.1) then
         call test_scalar_min_max(phi1)

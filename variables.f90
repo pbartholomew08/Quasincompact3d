@@ -48,7 +48,7 @@ real(mytype), save, allocatable, dimension(:,:,:) :: ep1
 real(mytype), save, allocatable, dimension(:,:,:) :: clx1, clx2, clx3
 real(mytype), save, allocatable, dimension(:,:,:) :: cly1, cly2, cly3
 real(mytype), save, allocatable, dimension(:,:,:) :: clz1, clz2, clz3
-real(mytype), save, allocatable, dimension(:,:,:) :: uxadj1, uyadj1, uzadj1
+real(mytype), save, allocatable, dimension(:,:,:) :: uxb1, uyb1, uzb1
 
 ! Additional variables required for LMN
 real(mytype), save, allocatable, dimension(:,:,:) :: rho1, rho2, rho3, rhos1, rhoss1, rhos01, &
@@ -192,19 +192,19 @@ contains
 !arrays for visualization!pay attention to the size!
     allocate (uvisu(xstV(1):xenV(1),xstV(2):xenV(2),xstV(3):xenV(3)))
 
-    !! Arrays for Adjoint
+    !! Background flow arrays for Adjoint
     if (iadj_mode) then
-       call alloc_x(uxadj1, opt_global=.true.)
-       call alloc_x(uyadj1, opt_global=.true.)
+       call alloc_x(uxb1, opt_global=.true.)
+       call alloc_x(uyb1, opt_global=.true.)
 #ifndef TWOD
-       call alloc_x(uzadj1, opt_global=.true.)
+       call alloc_x(uzb1, opt_global=.true.)
 #else
-       allocate (uzadj1(1,1,1))
+       allocate (uzb1(1,1,1))
 #endif
     else
-       allocate (uxadj1(1,1,1))
-       allocate (uyadj1(1,1,1))
-       allocate (uzadj1(1,1,1))
+       allocate (uxb1(1,1,1))
+       allocate (uyb1(1,1,1))
+       allocate (uzb1(1,1,1))
     endif
 
 !Y PENCILS
