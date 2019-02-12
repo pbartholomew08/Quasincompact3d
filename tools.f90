@@ -1358,7 +1358,7 @@ SUBROUTINE updateXYZ(var1, var2, var3, size1, size2, size3, idx1, idx2, idx3)
     
 ENDSUBROUTINE updateXYZ
 
-SUBROUTINE track_front(ux1, rho1, colour_crit)
+SUBROUTINE track_front(ux1, rho1, ta1, tb1, di1, ta2, ta3, colour_crit)
 
   USE param
   USE variables
@@ -1369,53 +1369,114 @@ SUBROUTINE track_front(ux1, rho1, colour_crit)
 
   INTEGER :: i, j, k, r
   INTEGER :: code
-  LOGICAL :: file_exists
+  LOGICAL :: file_exists, found_left
 
   INTEGER status(MPI_STATUS_SIZE)
   INTEGER :: ierr
   
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: ux1, rho1
-  REAL(mytype) :: x, x_left, x_right, u_left, u_right, rho_left, rho_right, rho_mid
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, di1
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: ta2
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: ta3
+  REAL(mytype) :: x, x_left, x_right, u_left, u_right, rho_max, rho_min, rho_mid, dhdx_crit
   REAL(mytype), INTENT(IN) :: colour_crit
+  REAL(mytype) :: c
   REAL(mytype) :: x_leftmin, u_leftmin, x_rightmax, u_rightmax
   CHARACTER(len=1024) :: filename
 
   x_left = 10._mytype * xlx
   x_right = -10._mytype * xlx
 
-  rho_left = 0._mytype
-  rho_right = 0._mytype
-  DO k = 1, xsize(3)
-     DO j = 1, xsize(2)
-        rho_left = rho_left + rho1(1, j, k)
-        rho_right = rho_right + rho1(xsize(1), j, k)
-     ENDDO
-  ENDDO
-  rho_left = rho_left / xsize(2) / xsize(3)
-  rho_right = rho_right / xsize(2) / xsize(3)
-  rho_mid = (1._mytype - colour_crit) * rho_left + colour_crit * rho_right
+  ! !! First spanwise average rho
+  ! CALL transpose_x_to_y(rho1, ta2)
+  ! CALL transpose_y_to_z(ta2, ta3)
+  ! DO k = 2, zsize(3)
+  !    DO j = 1, zsize(2)
+  !       DO i = 1, zsize(1)
+  !          ta3(i, j, 1) = ta3(i, j, 1) + ta3(i, j, k)
+  !       ENDDO
+  !    ENDDO
+  ! ENDDO
+  ! ta3(:,:,1) = ta3(:,:,1) / float(zsize(3))
+  ! DO k = 2, zsize(3)
+  !    ta3(:,:,k) = ta3(:,:,1)
+  ! ENDDO
+  ! CALL transpose_z_to_y(ta3, ta2)
+  ! CALL transpose_y_to_x(ta2, ta1)
 
-  !! Find the fronts
-  DO k = 1, xsize(3)
-     DO j = 1, xsize(2)
-        DO i = 1, xsize(1) - 1
-           x = ((i + 0.5_mytype) + xstart(1) - 2) * dx
-
-           IF (((rho1(i, j, k).GT.rho_mid).AND.(rho1(i + 1, j, k).LT.rho_mid)) &
-                .OR.((rho1(i, j, k).LT.rho_mid).AND.(rho1(i + 1, j, k).GT.rho_mid))) THEN
-              IF (x.GT.x_right) THEN
-                 !! Found the right front
-                 x_right = x
-                 u_right = 0.5_mytype * (ux1(i, j, k) + ux1(i + 1, j, k))
-              ELSEIF (x.LT.x_left) THEN
-                 !! Found the left front
-                 x_left = x
-                 u_left = 0.5_mytype * (ux1(i, j, k) + ux1(i + 1, j, k))
+  IF (colour_crit.GT.0._mytype) THEN
+     !! Use colour criterion
+     
+     rho_max = MAX(dens1, dens2)
+     rho_min = MIN(dens1, dens2)
+     rho_mid = (1._mytype - colour_crit) * rho_max + colour_crit * rho_min
+     
+     !! Find the fronts
+     DO k = 1, xsize(3)
+        DO j = 1, xsize(2)
+           !! Look for left
+           DO i = 1, xsize(1)
+              x = (i + xstart(1) - 2) * dx
+              c = (rho1(i, j, k) - rho_max) / (rho_min - rho_max)
+              IF (c.LT.colour_crit) THEN
+                 IF (x.LT.x_left) THEN
+                    x_left = x
+                    u_left = ux1(i, j, k)
+                 ENDIF
+                 EXIT
               ENDIF
-           ENDIF
+           ENDDO
+           
+           !! Look for right
+           DO i = xsize(1), 1, -1
+              x = (i + xstart(1) - 2) * dx
+              c = (rho1(i, j, k) - rho_max) / (rho_min - rho_max)
+
+              IF (c.LT.colour_crit) THEN
+                 IF (x.GT.x_right) THEN
+                    x_right = x
+                    u_right = ux1(i, j, k)
+                 ENDIF
+                 EXIT
+              ENDIF
+           ENDDO
         ENDDO
      ENDDO
-  ENDDO
+  ELSE !! Use gradient
+     ! CALL derx (tb1,ta1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1) !! Uses averaged field
+     CALL derx (tb1,rho1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+
+     dhdx_crit = 0.001 / dx
+     
+     !! Find front as first non-zero gradient
+     DO k = 1, xsize(3)
+        DO j = 1, xsize(2)
+           !! Look for left
+           DO i = 1, xsize(1)
+              x = (i + xstart(1) - 2) * dx
+              IF (abs(tb1(i, j, k)).GT.dhdx_crit) THEN
+                 IF (x.LT.x_left) THEN
+                    x_left = x
+                    u_left = ux1(i, j, k)
+                 ENDIF
+                 EXIT
+              ENDIF
+           ENDDO
+           
+           !! Look for right
+           DO i = xsize(1), 1, -1
+              x = (i + xstart(1) - 2) * dx
+              IF (abs(tb1(i, j, k)).GT.dhdx_crit) THEN
+                 IF (x.GT.x_right) THEN
+                    x_right = x
+                    u_right = ux1(i, j, k)
+                 ENDIF
+                 EXIT
+              ENDIF
+           ENDDO
+        ENDDO
+     ENDDO
+  ENDIF
 
   IF (nrank.EQ.0) THEN
      x_leftmin = x_left
@@ -1445,7 +1506,12 @@ SUBROUTINE track_front(ux1, rho1, colour_crit)
   ENDIF
 
   IF (nrank.EQ.0) THEN
-     WRITE(filename, "(A9, F3.1, A4)") "FRONTLOC-", colour_crit, ".log"
+     IF (colour_crit.GT.0._mytype) THEN
+        WRITE(filename, "(A9, F3.1, A4)") "FRONTLOC-", colour_crit, ".log"
+     ELSE
+        WRITE(filename, "(A17)") "FRONTLOC-GRAD.log"
+     ENDIF
+     
      INQUIRE(FILE=TRIM(filename), EXIST=file_exists)
      IF (file_exists.EQV..TRUE.) THEN
         OPEN(11, FILE=TRIM(filename), STATUS="old", ACTION="write", POSITION="append")
@@ -1459,7 +1525,7 @@ SUBROUTINE track_front(ux1, rho1, colour_crit)
   
 ENDSUBROUTINE track_front
 
-SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
+SUBROUTINE track_front_height(rho1, ta1, di1, rho2, ta2, rho3, ta3)
 
   USE param
   USE variables
@@ -1469,7 +1535,7 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
   IMPLICIT NONE
 
   REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: rho1
-  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ta1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ta1, di1
   REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: rho2, ta2
   REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: rho3, ta3
 
@@ -1478,15 +1544,21 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
   INTEGER :: i, j, k, r
 
   INTEGER :: N, i0, ie
-  REAL(mytype), DIMENSION(xsize(1)) :: h
+  REAL(mytype), DIMENSION(xsize(1), 1, 1) :: h
   REAL(mytype) :: x
   REAL(mytype) :: densr
 
   LOGICAL :: file_exists
 
   REAL(mytype) :: hr, xr, hw, xw, hf, xf
-  REAL(mytype) :: dhdx, d2hdx2
-  LOGICAL :: found_hr, found_exp
+  REAL(mytype), DIMENSION(xsize(1), 1, 1) :: dhdx, d2hdx2
+  REAL(mytype) :: dy_crit, dhdx_crit, h_01, h_99
+  LOGICAL :: found_hr, found_exp, found_end
+
+  dy_crit = 0.05 * dy !! This represents a very small change in height
+  dhdx_crit = dy_crit / dx
+  h_01 = 0.01 * yly
+  h_99 = 0.99 * yly
 
   !! We want to work in y, but first need to average in z
   CALL transpose_x_to_y(rho1, rho2)
@@ -1534,102 +1606,119 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
   !! Now compute moving average of front height
   CALL transpose_y_to_x(ta2, ta1)
   N = 16 ! Averaging interval
-  h(:) = 0._mytype
+  h(:, 1, 1) = 0._mytype
   DO i = 1, xsize(1)
      i0 = MAX((i - N / 2), 1)
      ie = MIN((i + N / 2), xsize(1))
      DO j = i0, ie
-        h(i) = h(i) + ta1(j, 1, 1)
+        h(i, 1, 1) = h(i, 1, 1) + ta1(j, 1, 1)
      ENDDO
-     h(i) = h(i) / float(ie - i0 + 1)
+     h(i, 1, 1) = h(i, 1, 1) / float(ie - i0 + 1)
 
      !! Clean data
-     IF (h(i).GT.(1.0_mytype - 1.0e-6_mytype)*yly) THEN
-        h(i) = yly
-     ELSE IF (h(i).LT.1.0e-6*yly) THEN
-        h(i) = 0._mytype
+     IF (h(i, 1, 1).GT.(yly - dy_crit)) THEN
+        h(i, 1, 1) = yly
+     ELSE IF (h(i, 1, 1).LT.dy_crit) THEN
+        h(i, 1, 1) = 0._mytype
      ENDIF
   ENDDO
 
   !! Compute hf, hw, hr and their locations
+  
   found_hr = .FALSE.
   found_exp = .FALSE.
+  found_end = .FALSE.
   hr = 0._mytype
   xr = -1._mytype
   hf = 0._mytype
   xf = -1._mytype
   hw = yly
   xw = -1._mytype
+
+  !! First compute derivatives
+  CALL derx(dhdx,h,di1,sx,ffxp,fsxp,fwxp,xsize(1),1,1,1)
+  CALL derxx (d2hdx2,h,di1,sx,sfxp,ssxp,swxp,xsize(1),1,1,1)
+
+  !! Look for maxima/minima etc.
   DO i = 2, xsize(1) - 1
      x = float(i + xstart(1) - 2) * dx
-     dhdx = (h(i + 1) - h(i - 1)) / (2._mytype * dx)
      IF (found_exp) THEN
-        IF ((h(i - 1).GT.h(i)).AND.(h(i + 1).GT.h(i))) THEN
-           !! This is a minimum
-           IF (.NOT.found_hr) THEN
-              
-              hr = h(i)
-              xr = x
-              found_hr = .TRUE.
-
-              hw = h(i)
-              xw = x
-
-              hf = h(i)
+        IF (.NOT.found_end) THEN
+           IF ((ABS(dhdx(i, 1, 1)).LT.dhdx_crit).AND.(d2hdx2(i, 1, 1).GE.0._mytype)) THEN
+              !! This is a minimum
+              IF (.NOT.found_hr) THEN
+                 !! This is the first minimum
+                 IF (h(i, 1, 1).GT.h_01) THEN
+                    hr = h(i, 1, 1)
+                    xr = x
+                    found_hr = .TRUE.
+                    
+                    hw = h(i, 1, 1)
+                    xw = x
+                    
+                    hf = h(i, 1, 1)
+                    xf = x
+                 ENDIF
+              ELSEIF (h(i, 1, 1).LT.hw) THEN
+                 hw = h(i, 1, 1)
+                 xw = x
+                 hf = 0._mytype
+                 xf = -1._mytype
+              ENDIF
+           ENDIF
+           IF (h(i, 1, 1).GT.hf) THEN !! hf is the maximum after hw
+              hf = h(i, 1, 1)
               xf = x
-           ELSEIF (h(i).LT.hw) THEN
-              hw = h(i)
-              xw = x
-              hf = 0._mytype
-              xf = -1._mytype
            ENDIF
+
+           IF (found_hr.AND.(h(i, 1, 1).LT.h_01)) THEN
+              found_end = .TRUE.
+              DO j = i, xsize(1)
+                 IF (h(j, 1, 1).GT.h_01) THEN
+                    found_end = .FALSE.
+                    EXIT
+                 ENDIF
+              ENDDO
+           ENDIF
+        ELSE !! No need to continue looping
+           EXIT
         ENDIF
-        IF (h(i).GT.hf) THEN !! hf is the maximum after hw
-           hf = h(i)
-           xf = x
-        ENDIF
-     ELSE IF (h(i).LT.0.99*yly) THEN
+     ELSE IF (h(i, 1, 1).LT.h_99) THEN
         found_exp = .TRUE.
-        DO j = i, xsize(1)
-           IF (h(j).GT.0.99*yly) THEN
-              found_exp = .FALSE.
-              EXIT
-           ENDIF
-        ENDDO
      ENDIF
   ENDDO
 
   IF (.NOT.found_hr) THEN
      found_exp = .FALSE.
+     found_end = .FALSE.
      DO i = 2, xsize(1) - 1
         x = float(i + xstart(1) - 2) * dx
-        d2hdx2 = (h(i + 1) - 2._mytype * h(i) + h(i - 1)) / (dx**2)
 
-        IF (.NOT.found_hr) THEN
-           IF (h(i).LT.0.99*yly) THEN
-              found_hr = .TRUE.
-              DO j = i, xsize(1)
-                 IF (h(j).GT.0.99*yly) THEN
-                    found_hr = .FALSE.
-                    EXIT
-                 ENDIF
-              ENDDO
-              IF (found_hr) THEN
-                 hr = h(i)
-                 xr = x
-              ENDIF
-           ENDIF
-        ELSE IF (.NOT.found_exp) THEN
-           IF (h(i).LT.0.01*yly) THEN
+        IF (.NOT.found_exp) THEN
+           IF (h(i, 1, 1).LT.h_99) THEN
               found_exp = .TRUE.
               DO j = i, xsize(1)
-                 IF (h(j).GT.0.99*yly) THEN
+                 IF (h(j, 1, 1).GT.h_99) THEN
                     found_exp = .FALSE.
                     EXIT
                  ENDIF
               ENDDO
               IF (found_exp) THEN
-                 hf = h(i)
+                 hr = h(i, 1 ,1)
+                 xr = x
+              ENDIF
+           ENDIF
+        ELSE IF (.NOT.found_end) THEN
+           IF (h(i, 1, 1).LT.h_01) THEN
+              found_end = .TRUE.
+              DO j = i, xsize(1)
+                 IF (h(j, 1, 1).GT.h_01) THEN
+                    found_end = .FALSE.
+                    EXIT
+                 ENDIF
+              ENDDO
+              IF (found_end) THEN
+                 hf = h(i, 1, 1)
                  xf = x
                  EXIT
               ENDIF
@@ -1639,6 +1728,10 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
 
      hw = 0.5_mytype * (hr + hf)
      xw = 0.5_mytype * (xr + xf)
+     hr = hw
+     hf = hw
+     xr = xw
+     xf = xw
   ENDIF
 
   IF (nrank.EQ.0) THEN
@@ -1648,9 +1741,9 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
         OPEN(11, FILE="FRONTHEIGHT-LOC.log", STATUS="old", ACTION="write", POSITION="append")
      ELSE
         OPEN(11, FILE="FRONTHEIGHT-LOC.log", STATUS="new", ACTION="write")
-        WRITE(11, *) "TIME Xr Hr Xf Hf Xw Hw"
+        WRITE(11, *) "TIME Xr Hr Xf Hf Xw Hw Valid"
      ENDIF
-     WRITE(11, "(F9.6, ES14.6, ES14.6, ES14.6, ES14.6, ES14.6, ES14.6)") t, xr, hr, xf, hf, xw, hw
+     WRITE(11, "(F9.6, ES14.6, ES14.6, ES14.6, ES14.6, ES14.6, ES14.6, L2)") t, xr, hr, xf, hf, xw, hw, found_hr
      CLOSE(11)
      
      IF (MOD(itime, imodulo).EQ.0) THEN
@@ -1667,7 +1760,7 @@ SUBROUTINE track_front_height(rho1, ta1, rho2, ta2, rho3, ta3)
         
         DO i = 1, xsize(1)
            x = float(i + xstart(1) - 2) * dx
-           WRITE(12, "(F9.6, ES14.6, ES14.6)") t, x, h(i)
+           WRITE(12, "(F9.6, ES14.6, ES14.6)") t, x, h(i, 1, 1)
         ENDDO
         
         CLOSE(12)
