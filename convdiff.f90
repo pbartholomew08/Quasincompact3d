@@ -2179,3 +2179,231 @@ SUBROUTINE fringe_bcx(ta1, tb1, tc1, ux1, uy1, uz1, rho1) !, bc1, bcn)
   ! ENDIF !! End XEND BC
   
 ENDSUBROUTINE fringe_bcx
+
+subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxadj1,uyadj1,uzadj1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
+     ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
+     ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+
+  USE param
+  USE variables
+  USE decomp_2d
+
+  USE MPI
+
+  implicit none
+
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1,uxadj1,uyadj1,uzadj1
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ux2,uy2,uz2 
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ux3,uy3,uz3
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3
+
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: rho1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: rho2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: rho3
+
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: divu1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: divu2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: divu3
+
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: clx1, cly1, clz1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: clx2, cly2, clz2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: clx3, cly3, clz3
+  
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: mu1
+  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: mu2
+  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: mu3
+
+  integer :: ijk,nvect1,nvect2,nvect3,i,j,k
+  real(mytype) :: x,y,z
+
+  real(mytype), parameter :: ONETHIRD = 1._mytype / 3._mytype
+
+  logical :: entrain_y, entrain_z
+  logical :: expand_cross
+
+  entrain_y = .FALSE.
+  entrain_z = .FALSE.
+  if (itype.eq.5) then
+     if (ncly.eq.2) then
+        entrain_y = .TRUE.
+     endif
+     if (nclz.eq.2) then
+        entrain_z = .TRUE.
+     endif
+  endif
+
+  expand_cross = .TRUE. !! If true, expand cross-shear terms first
+
+  nvect1=xsize(1)*xsize(2)*xsize(3)
+  nvect2=ysize(1)*ysize(2)*ysize(3)
+  nvect3=zsize(1)*zsize(2)*zsize(3)
+
+  !WORK X-PENCILS
+  td1(:,:,:) = uxadj1(:,:,:) * ux1(:,:,:)
+  te1(:,:,:) = uyadj1(:,:,:) * ux1(:,:,:)
+  tf1(:,:,:) = uzadj1(:,:,:) * ux1(:,:,:)
+
+  call derx (tg1,td1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+  call derx (th1,te1,di1,sx,ffx,fsx,fwx,xsize(1),xsize(2),xsize(3),0)
+  call derx (ti1,tf1,di1,sx,ffx,fsx,fwx,xsize(1),xsize(2),xsize(3),0)
+  call derx (td1,uxadj1,di1,sx,ffx,fsx,fwx,xsize(1),xsize(2),xsize(3),0)
+  call derx (te1,uyadj1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+  call derx (tf1,uzadj1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+
+  ta1(:,:,:) = tg1(:,:,:) - ux1(:,:,:) * td1(:,:,:)
+  tb1(:,:,:) = th1(:,:,:) - ux1(:,:,:) * te1(:,:,:)
+  tc1(:,:,:) = ti1(:,:,:) - ux1(:,:,:) * tf1(:,:,:)
+
+  call transpose_x_to_y(ux1,ux2)
+  call transpose_x_to_y(uy1,uy2)
+  call transpose_x_to_y(uz1,uz2)
+  call transpose_x_to_y(ta1,ta2)
+  call transpose_x_to_y(tb1,tb2)
+  call transpose_x_to_y(tc1,tc2)
+  call transpose_x_to_y(uxadj1,tg2)
+  call transpose_x_to_y(uyadj1,th2)
+  call transpose_x_to_y(uzadj1,ti2)
+
+  !WORK Y-PENCILS
+
+  !! Compute ddy (u_adj v)
+  td2(:,:,:) = tg2(:,:,:) * uy2(:,:,:)
+  call dery (te2,td2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+  ta2(:,:,:) = ta2(:,:,:) + te2(:,:,:)
+  
+  te2(:,:,:) = th2(:,:,:) * uy2(:,:,:)
+  call dery (td2,te2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+  tb2(:,:,:) = tb2(:,:,:) + td2(:,:,:)
+  
+  tf2(:,:,:) = ti2(:,:,:) * uy2(:,:,:)
+  call dery (td2,tf2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+  tc2(:,:,:) = tc2(:,:,:) + td2(:,:,:)
+
+  !! Compute v ddy(u_adj)
+  call dery (td2,tg2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1) 
+  call dery (te2,th2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+  call dery (tf2,ti2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+
+  ta2(:,:,:) = ta2(:,:,:) - uy2(:,:,:) * td2(:,:,:)
+  tb2(:,:,:) = tb2(:,:,:) - uy2(:,:,:) * te2(:,:,:)
+  tc2(:,:,:) = tc2(:,:,:) - uy2(:,:,:) * tf2(:,:,:)
+
+  call transpose_y_to_z(ux2,ux3)
+  call transpose_y_to_z(uy2,uy3)
+  call transpose_y_to_z(uz2,uz3)
+  call transpose_y_to_z(ta2,ta3)
+  call transpose_y_to_z(tb2,tb3)
+  call transpose_y_to_z(tc2,tc3)
+  call transpose_y_to_z(tg2,tg3)
+  call transpose_y_to_z(th2,th3)
+  call transpose_y_to_z(ti2,ti3)
+
+  !WORK Z-PENCILS
+
+  !! Compute ddz (u_adj w)
+  td3(:,:,:) = tg3(:,:,:) * uz3(:,:,:)
+  call derz (te3,td3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
+  ta3(:,:,:) = ta3(:,:,:) + te3(:,:,:)
+  
+  te3(:,:,:) = th3(:,:,:) * uz3(:,:,:)
+  call derz (td3,te3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
+  tb3(:,:,:) = tb3(:,:,:) + td3(:,:,:)
+  
+  tf3(:,:,:) = ti3(:,:,:) * uz3(:,:,:)
+  call derz (td3,tf3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  tc3(:,:,:) = tc3(:,:,:) + td3(:,:,:)
+
+  !! Compute w ddz(u_adj)
+  call derz (td3,tg3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  call derz (te3,th3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  call derz (tf3,ti3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
+
+  ta3(:,:,:) = ta3(:,:,:) - uz3(:,:,:) * td3(:,:,:)
+  tb3(:,:,:) = tb3(:,:,:) - uz3(:,:,:) * te3(:,:,:)
+  tc3(:,:,:) = tc3(:,:,:) - uz3(:,:,:) * tf3(:,:,:)
+
+  !ALL THE CONVECTIVE TERMS ARE IN TA3, TB3 and TC3
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !Start of diffusion
+
+  !DIFFUSIVE TERMS IN Z
+  call derzz (td3,tg3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
+  call derzz (te3,th3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
+  call derzz (tf3,ti3,di3,sz,sfz ,ssz ,swz ,zsize(1),zsize(2),zsize(3),0)
+
+  ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:)
+  tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:)
+  tc3(:,:,:) = tc3(:,:,:) + xnu * tf3(:,:,:)
+
+  call transpose_z_to_y(ta3,ta2)
+  call transpose_z_to_y(tb3,tb2)
+  call transpose_z_to_y(tc3,tc2)
+  
+  !WORK Y-PENCILS
+
+  !DIFFUSIVE TERMS IN Y
+  !-->for ux
+  if (istret.ne.0) then 
+    call deryy (td2,tg2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
+    call dery (te2,tg2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+    do k=1,ysize(3)
+      do j=1,ysize(2)
+        do i=1,ysize(1)
+          td2(i,j,k)=td2(i,j,k)*pp2y(j)-pp4y(j)*te2(i,j,k)
+        enddo
+      enddo
+    enddo
+  else
+    call deryy (td2,tg2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1) 
+  endif
+
+  !-->for uy
+  if (istret.ne.0) then 
+    call deryy (te2,th2,di2,sy,sfy,ssy,swy,ysize(1),ysize(2),ysize(3),0)
+    call dery (tf2,th2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+    do k=1,ysize(3)
+      do j=1,ysize(2)
+        do i=1,ysize(1)
+          te2(i,j,k)=te2(i,j,k)*pp2y(j)-pp4y(j)*tf2(i,j,k)
+        enddo
+      enddo
+    enddo
+  else
+    call deryy (te2,th2,di2,sy,sfy,ssy,swy,ysize(1),ysize(2),ysize(3),0) 
+  endif
+  !-->for uz
+  if (istret.ne.0) then 
+    call deryy (tf2,ti2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
+    call dery (tj2,ti2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+    do k=1,ysize(3)
+      do j=1,ysize(2)
+        do i=1,ysize(1)
+          tf2(i,j,k)=tf2(i,j,k)*pp2y(j)-pp4y(j)*tj2(i,j,k)
+        enddo
+      enddo
+    enddo
+  else
+    call deryy (tf2,uz2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1) 
+  endif
+
+  ta2(:,:,:) = ta2(:,:,:) + xnu * td2(:,:,:)
+  tb2(:,:,:) = tb2(:,:,:) + xnu * te2(:,:,:)
+  tc2(:,:,:) = tc2(:,:,:) + xnu * tf2(:,:,:)
+
+  !WORK X-PENCILS
+  call transpose_y_to_x(ta2,ta1)
+  call transpose_y_to_x(tb2,tb1)
+  call transpose_y_to_x(tc2,tc1) 
+
+  !DIFFUSIVE TERMS IN X
+  call derxx (td1,uxadj1,di1,sx,sfx ,ssx ,swx ,xsize(1),xsize(2),xsize(3),0)
+  call derxx (te1,uyadj1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+  call derxx (tf1,uzadj1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+
+  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:)
+  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:)
+  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:)
+
+end subroutine convdiff_adj
