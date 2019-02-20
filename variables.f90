@@ -48,7 +48,7 @@ real(mytype), save, allocatable, dimension(:,:,:) :: ep1
 real(mytype), save, allocatable, dimension(:,:,:) :: clx1, clx2, clx3
 real(mytype), save, allocatable, dimension(:,:,:) :: cly1, cly2, cly3
 real(mytype), save, allocatable, dimension(:,:,:) :: clz1, clz2, clz3
-real(mytype), save, allocatable, dimension(:,:,:) :: uxb1, uyb1, uzb1
+real(mytype), save, allocatable, dimension(:,:,:) :: uxb1, uyb1, uzb1, rhob1
 
 ! Additional variables required for LMN
 real(mytype), save, allocatable, dimension(:,:,:) :: rho1, rho2, rho3, rhos1, rhoss1, rhos01, &
@@ -201,10 +201,17 @@ contains
 #else
        allocate (uzb1(1,1,1))
 #endif
+       if (ilmn.ne.0) then
+          call alloc_x(rhob1, opt_global=.true.)
+       else
+          allocate (rhob1(1,1,1))
+       endif
     else
        allocate (uxb1(1,1,1))
        allocate (uyb1(1,1,1))
        allocate (uzb1(1,1,1))
+
+       allocate (rhob1(1,1,1))
     endif
 
 !Y PENCILS

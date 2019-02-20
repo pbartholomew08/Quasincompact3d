@@ -2180,9 +2180,9 @@ SUBROUTINE fringe_bcx(ta1, tb1, tc1, ux1, uy1, uz1, rho1) !, bc1, bcn)
   
 ENDSUBROUTINE fringe_bcx
 
-subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
-     ux2,uy2,uz2,rho2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
-     ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+subroutine convdiff_adj(ux1,uy1,uz1,mu1,uxb1,uyb1,uzb1,rhob1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
+     ux2,uy2,uz2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
+     ux3,uy3,uz3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
 
   USE param
   USE variables
@@ -2192,16 +2192,12 @@ subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,te1,
 
   implicit none
 
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ux1,uy1,uz1,uxb1,uyb1,uzb1
+  real(mytype),dimension(xsize(1),xsize(2),xsize(3)),intent(in) :: ux1,uy1,uz1,uxb1,uyb1,uzb1,rhob1
   real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ux2,uy2,uz2 
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2
   real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ux3,uy3,uz3
   real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3
-
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: rho1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: rho2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: rho3
 
   real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: divu1
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: divu2
@@ -2331,9 +2327,12 @@ subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,te1,
   call derzz (te3,uy3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
   call derzz (tf3,uz3,di3,sz,sfz ,ssz ,swz ,zsize(1),zsize(2),zsize(3),0)
 
-  ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:)
-  tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:)
-  tc3(:,:,:) = tc3(:,:,:) + xnu * tf3(:,:,:)
+  call transpose_x_to_y(rhob1, tg2)
+  call transpose_y_to_z(tg2, tg3)
+
+  ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:) / tg3(:,:,:)
+  tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:) / tg3(:,:,:)
+  tc3(:,:,:) = tc3(:,:,:) + xnu * tf3(:,:,:) / tg3(:,:,:)
 
   call transpose_z_to_y(ta3,ta2)
   call transpose_z_to_y(tb3,tb2)
@@ -2387,9 +2386,9 @@ subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,te1,
     call deryy (tf2,uz2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1) 
   endif
 
-  ta2(:,:,:) = ta2(:,:,:) + xnu * td2(:,:,:)
-  tb2(:,:,:) = tb2(:,:,:) + xnu * te2(:,:,:)
-  tc2(:,:,:) = tc2(:,:,:) + xnu * tf2(:,:,:)
+  ta2(:,:,:) = ta2(:,:,:) + xnu * td2(:,:,:) / tg2(:,:,:)
+  tb2(:,:,:) = tb2(:,:,:) + xnu * te2(:,:,:) / tg2(:,:,:)
+  tc2(:,:,:) = tc2(:,:,:) + xnu * tf2(:,:,:) / tg2(:,:,:)
 
   !WORK X-PENCILS
   call transpose_y_to_x(ta2,ta1)
@@ -2401,8 +2400,8 @@ subroutine convdiff_adj(ux1,uy1,uz1,rho1,mu1,uxb1,uyb1,uzb1,ta1,tb1,tc1,td1,te1,
   call derxx (te1,uy1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
   call derxx (tf1,uz1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
 
-  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:)
-  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:)
-  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:)
+  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:) / rhob1(:,:,:)
+  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:) / rhob1(:,:,:)
+  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:) / rhob1(:,:,:)
 
 end subroutine convdiff_adj
