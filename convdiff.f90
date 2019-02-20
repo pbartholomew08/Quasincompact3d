@@ -2180,9 +2180,10 @@ SUBROUTINE fringe_bcx(ta1, tb1, tc1, ux1, uy1, uz1, rho1) !, bc1, bcn)
   
 ENDSUBROUTINE fringe_bcx
 
-subroutine convdiff_adj(ux1,uy1,uz1,mu1,uxb1,uyb1,uzb1,rhob1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
-     ux2,uy2,uz2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
-     ux3,uy3,uz3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+subroutine convdiff_adj(ux1, uy1, uz1, temperature1, mu1, uxb1, uyb1, uzb1, rhob1, temperatureb1, &
+     ta1, tb1, tc1, td1, te1, tf1, tg1, th1, ti1, di1, &
+     ux2, uy2, uz2, mu2, ta2, tb2, tc2, td2, te2, tf2, tg2, th2, ti2, tj2, di2, &
+     ux3, uy3, uz3, mu3, divu3, ta3, tb3, tc3, td3, te3, tf3, tg3, th3, ti3, di3)
 
   USE param
   USE variables
@@ -2192,12 +2193,13 @@ subroutine convdiff_adj(ux1,uy1,uz1,mu1,uxb1,uyb1,uzb1,rhob1,ta1,tb1,tc1,td1,te1
 
   implicit none
 
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)),intent(in) :: ux1,uy1,uz1,uxb1,uyb1,uzb1,rhob1
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ux2,uy2,uz2 
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ux3,uy3,uz3
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3
+  real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: ux1, uy1, uz1, temperature1, &
+       uxb1, uyb1, uzb1, rhob1, temperatureb1
+  real(mytype), dimension(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, tc1, td1, te1, tf1, tg1, th1, ti1, di1
+  real(mytype), dimension(ysize(1), ysize(2), ysize(3)) :: ux2, uy2, uz2 
+  real(mytype), dimension(ysize(1), ysize(2), ysize(3)) :: ta2, tb2, tc2, td2, te2, tf2, tg2, th2, ti2, tj2, di2
+  real(mytype), dimension(zsize(1), zsize(2), zsize(3)) :: ux3, uy3, uz3
+  real(mytype), dimension(zsize(1), zsize(2), zsize(3)) :: ta3, tb3, tc3, td3, te3, tf3, tg3, th3, ti3, di3
 
   real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: divu1
   real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: divu2
@@ -2327,8 +2329,15 @@ subroutine convdiff_adj(ux1,uy1,uz1,mu1,uxb1,uyb1,uzb1,rhob1,ta1,tb1,tc1,td1,te1
   call derzz (te3,uy3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
   call derzz (tf3,uz3,di3,sz,sfz ,ssz ,swz ,zsize(1),zsize(2),zsize(3),0)
 
-  call transpose_x_to_y(rhob1, tg2)
-  call transpose_y_to_z(tg2, tg3)
+  if (ilmn.ne.0) then
+     tg1(:,:,:) = rhob1(:,:,:)
+     call transpose_x_to_y(rhob1, tg2)
+     call transpose_y_to_z(tg2, tg3)
+  else
+     tg1(:,:,:) = 1._mytype
+     tg2(:,:,:) = 1._mytype
+     tg3(:,:,:) = 1._mytype
+  endif
 
   ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:) / tg3(:,:,:)
   tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:) / tg3(:,:,:)
@@ -2399,9 +2408,50 @@ subroutine convdiff_adj(ux1,uy1,uz1,mu1,uxb1,uyb1,uzb1,rhob1,ta1,tb1,tc1,td1,te1
   call derxx (td1,ux1,di1,sx,sfx ,ssx ,swx ,xsize(1),xsize(2),xsize(3),0)
   call derxx (te1,uy1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
   call derxx (tf1,uz1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+  
+  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:) / tg1(:,:,:)
+  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:) / tg1(:,:,:)
+  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:) / tg1(:,:,:)
 
-  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:) / rhob1(:,:,:)
-  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:) / rhob1(:,:,:)
-  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:) / rhob1(:,:,:)
+  if (ilmn.ne.0) then
+     call momentum_adj_gradt(ta1, tb1, tc1, temperature1, temperatureb1, td1, te1, tf1, di1, &
+          ta2, tb2, tc2, di2, &
+          ta3, tc3, di3)
+  endif
 
 end subroutine convdiff_adj
+
+subroutine momentum_adj_gradt(ta1, tb1, tc1, temperature1, temperatureb1, td1, te1, tf1, di1, &
+     ta2, tb2, tc2, di2, &
+     ta3, tc3, di3)
+
+  USE param
+  USE variables
+  USE decomp_2d
+
+  IMPLICIT NONE
+
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, tc1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: temperature1, temperatureb1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: td1, te1, tf1, di1
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: ta2, tb2, tc2, di2
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: ta3, tc3, di3
+
+  !! Temperature gradient term
+  call transpose_x_to_y(temperatureb1, ta2)
+  call transpose_y_to_z(ta2, ta3)
+  
+  call derz (tc3,ta3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  call transpose_z_to_y(tc3, tc2)
+  
+  call dery (tb2,ta2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+  call transpose_y_to_x(tb2, te1)
+  call transpose_y_to_x(tc2, tf1)
+  
+  call derx (td1,temperatureb1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+
+  ta1(:,:,:) = ta1(:,:,:) - temperature1(:,:,:) * td1(:,:,:)
+  tb1(:,:,:) = tb1(:,:,:) - temperature1(:,:,:) * te1(:,:,:)
+  tc1(:,:,:) = tc1(:,:,:) - temperature1(:,:,:) * tf1(:,:,:)
+  
+end subroutine momentum_adj_gradt
