@@ -1136,7 +1136,7 @@ SUBROUTINE calc_divu(ta1, tb1, tc1, rho1, temperature1, massfrac1, kappa1, di1, 
 
   REAL(mytype) :: invpressure0, invpr, invsc
   
-  IF (ilmn.NE.0) THEN
+  IF ((ilmn.NE.0).AND.(.NOT.iadj_mode)) THEN
     invpressure0 = 1._mytype / pressure0
     invpr = 1._mytype / pr
     invsc = 1._mytype / sc
