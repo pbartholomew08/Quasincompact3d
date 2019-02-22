@@ -1257,10 +1257,15 @@ SUBROUTINE calc_divu(ta1, tb1, tc1, rho1, temperature1, massfrac1, kappa1, di1, 
     
     ! XXX add dpdt and additional source terms
   ELSE
-    temperature2(:,:,:) = 1._mytype
-    temperature3(:,:,:) = 1._mytype
+     IF (.NOT.iadj_mode) THEN
+        temperature2(:,:,:) = 1._mytype
+        temperature3(:,:,:) = 1._mytype
+     ELSE
+        CALL transpose_x_to_y(temperature1, temperature2)
+        CALL transpose_y_to_z(temperature2, temperature3)
+     ENDIF
 
-    divu3(:,:,:) = 0._mytype
+     divu3(:,:,:) = 0._mytype
   ENDIF
     
   !-------------------------------------------------------------------

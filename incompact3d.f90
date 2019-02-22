@@ -290,15 +290,21 @@ PROGRAM incompact3d
         endif
 
         if (ivarcoeff.eq.0) then
-           !! Predict drhodt at new timestep
-           call extrapol_rhotrans(rho1,rhos1,rhoss1,rhos01,rhos001,drhodt1)
+           if (.not.iadj_mode) then
+              !! Predict drhodt at new timestep
+              call extrapol_rhotrans(rho1,rhos1,rhoss1,rhos01,rhos001,drhodt1)
            
-           ! !! Apply Birman correction
-           ! call birman_rhotrans_corr(rho1, drhodt1, ta1, tb1, di1, rho2, &
-           !      ta2, tb2, di2, &
-           !      rho3, ta3, di3)
+              ! !! Apply Birman correction
+              ! call birman_rhotrans_corr(rho1, drhodt1, ta1, tb1, di1, rho2, &
+              !      ta2, tb2, di2, &
+              !      rho3, ta3, di3)
 
-           call rhotrans_skewsymm(drhodt1, rho1)
+              call rhotrans_skewsymm(drhodt1, rho1)
+           else
+              call extrapol_ugradrho_adj(rhob1, ux1, uy1, uz1, drhodt1, ta1, tb1, tc1, di1, &
+                   ta2, tb2, tc2, di2, &
+                   ta3, tb3, di3)
+           endif
         endif
       endif
 

@@ -2255,6 +2255,51 @@ SUBROUTINE extrapol_rhotrans(rho1, rhos1, rhoss1, rhos01, rhos001, drhodt1)
 
 ENDSUBROUTINE extrapol_rhotrans
 
+!********************************************************************
+!  SUBROUTINE: extrapol_ugradrho_adj
+! DESCRIPTION: Extrapolates the adjoint velocity dotted with grad rho
+!********************************************************************
+SUBROUTINE extrapol_ugradrho_adj(rhob1, ux1, uy1, uz1, ugradrho1, ta1, tb1, tc1, di1, &
+     ta2, tb2, tc2, di2, &
+     ta3, tb3, di3)
+
+  USE variables
+  USE param
+  USE decomp_2d
+  
+  IMPLICIT NONE
+
+  REAL(mytype), DIMENSION(xsize(1),xsize(2),xsize(3)), INTENT(IN) :: rhob1, ux1, uy1, uz1
+  REAL(mytype), DIMENSION(xsize(1),xsize(2),xsize(3)) :: ugradrho1
+
+  !! Work vectors
+  REAL(mytype), DIMENSION(xsize(1),xsize(2),xsize(3)) :: ta1, tb1, tc1, di1
+  REAL(mytype), DIMENSION(ysize(1),ysize(2),ysize(3)) :: ta2, tb2, tc2, di2
+  REAL(mytype), DIMENSION(zsize(1),zsize(2),zsize(3)) :: ta3, tb3, di3
+  
+  !! Get to Y
+  call transpose_x_to_y(rhob1, ta2)
+  
+  !! Get to Z
+  call transpose_y_to_z(ta2, ta3)
+
+  call derz (tb3,ta3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  
+  !! Get to Y
+  call transpose_z_to_y(tb3, tc2)
+  
+  call dery (tb2,ta2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
+
+  !! Get to X
+  call transpose_y_to_x(tb2, tb1)
+  call transpose_y_to_x(tc2, tc1)
+
+  call derx (ta1,rhob1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
+
+  ugradrho1(:,:,:) = ux1(:,:,:) * ta1(:,:,:) + uy1(:,:,:) * tb1(:,:,:) + uz1(:,:,:) * tc1(:,:,:)
+  
+ENDSUBROUTINE extrapol_ugradrho_adj
+
 SUBROUTINE rhotrans_skewsymm(drhodt1, rho1)
 
   USE param
@@ -2419,8 +2464,17 @@ SUBROUTINE divergence_mom(drhodt1, pp3, di1, di2, di3, nxmsize, nymsize, nzmsize
   CALL interz6(divmom3, -drhodt3, di3, sz, cifzp6, ciszp6, ciwzp6, (ph1%zen(1) - ph1%zst(1) + 1), &
        (ph1%zen(2) - ph1%zst(2) + 1), zsize(3), nzmsize, 1)
 
-  ! Add new divergence of momentum to RHS of Poisson equation
-  pp3(:,:,:) = pp3(:,:,:) - divmom3(:,:,:)
+  IF (.NOT.iadj_mode) THEN
+     ! Add new divergence of momentum to RHS of Poisson equation
+     pp3(:,:,:) = pp3(:,:,:) - divmom3(:,:,:)
+  ELSE
+     ! We have borrowed this subroutine in the adjoint solver,
+     ! divmom3 is infact u_+ \cdot \nabla\rho and comes in with the
+     ! correct sign to be subtracted from pp3 (note the above does
+     ! sign swapping because div(rho u) = -drhodt) hence here we
+     ! add 'divmom3'
+     pp3(:,:,:) = pp3(:,:,:) + divmom3(:,:,:)
+  ENDIF
 
 ENDSUBROUTINE divergence_mom
 
