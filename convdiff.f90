@@ -977,6 +977,70 @@ SUBROUTINE convdiff_temperature(ux1, uy1, uz1, rho1, temperature1, di1, ta1, tb1
   
 ENDSUBROUTINE convdiff_temperature
 
+SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1, di1, ta1, tb1,&
+     uyb2, uzb2, rhob2, temperature2, di2, ta2, tb2,&
+     uzb3, rhob3, temperature3, di3, ta3, tb3)
+
+  USE param
+  USE variables
+  USE decomp_2d
+  
+  IMPLICIT NONE
+
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: uxb1, uyb1, uzb1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: temperature1, rho1, rhob1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: di1, ta1, tb1
+  
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: uyb2, uzb2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: temperature2, rhob2
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: di2, ta2, tb2
+  
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: uzb3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: temperature3, rhob3
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: di3, ta3, tb3
+
+  REAL(mytype) :: invpr
+
+  invpr = 1._mytype / pr
+
+  !! Get to Z and work backwards
+  call transpose_x_to_y(temperature1, temperature2)
+  call transpose_x_to_y(uyb1, uyb2)
+  call transpose_x_to_y(uzb1, uzb2)
+  call transpose_x_to_y(rhob1, rhob2)
+
+  call transpose_y_to_z(temperature2, temperature3)
+  call transpose_y_to_z(uzb2, uzb3)
+  call transpose_y_to_z(rhob2, rhob3)
+
+  call derz(ta3, temperature3, di3, sz, ffzp, fszp, fwzp, zsize(1), zsize(2), zsize(3), 1)
+  call derzz(tb3, temperature3, di3, sz, sfzp, sszp, swzp, zsize(1), zsize(2), zsize(3), 1)
+  ta3(:,:,:) = rhob3(:,:,:) * uzb3(:,:,:) * ta3(:,:,:) + (xnu * invpr) * tb3(:,:,:)
+
+  !! Back to Y
+  call transpose_z_to_y(ta3, tb2)
+  
+  call dery (ta2, temperature2, di2, sy, ffyp, fsyp, fwyp, ppy, ysize(1), ysize(2), ysize(3), 1)
+  ta2(:,:,:) = rhob2(:,:,:) * uyb2(:,:,:) * ta2(:,:,:) + tb2(:,:,:)
+  call deryy (tb2,temperature2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
+  ta2(:,:,:) = ta2(:,:,:) + (xnu * invpr) * tb2(:,:,:)
+
+  !! Back to X
+  call transpose_y_to_x(ta2, tb1)
+  
+  call derx (ta1, temperature1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
+  ta1(:,:,:) = rhob1(:,:,:) * uxb1(:,:,:) * ta1(:,:,:) + tb1(:,:,:)
+  call derxx (tb1,temperature1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+  ta1(:,:,:) = ta1(:,:,:) + (xnu * invpr) * tb1(:,:,:)
+
+  !! Add the 'density' term
+  ta1(:,:,:) = ta1(:,:,:) - rhob1(:,:,:) * rho1(:,:,:)
+
+  !! Divide thru by density
+  ta1(:,:,:) = ta1(:,:,:) / rhob1(:,:,:)
+
+ENDSUBROUTINE convdiff_temperature_adj
+
 SUBROUTINE convdiff_massfrac(ux1, uy1, uz1, rho1, massfrac1, massfracs1, massfracss1, ta1, tb1, tc1, di1, &
      uy2, uz2, rho2, massfrac2, ta2, tb2, tc2, di2, &
      uz3, rho3, massfrac3, ta3, tb3, tc3, di3, &
