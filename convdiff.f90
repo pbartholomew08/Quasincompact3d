@@ -977,9 +977,11 @@ SUBROUTINE convdiff_temperature(ux1, uy1, uz1, rho1, temperature1, di1, ta1, tb1
   
 ENDSUBROUTINE convdiff_temperature
 
-SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1, di1, ta1, tb1,&
-     uyb2, uzb2, rhob2, temperature2, di2, ta2, tb2,&
-     uzb3, rhob3, temperature3, di3, ta3, tb3)
+SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1, &
+     di1, ta1, tb1, tc1, &
+     uyb2, uzb2, rhob2, temperature2, di2, ta2, tb2, dip2, tc2, td2, &
+     uzb3, rhob3, temperature3, d2pdx2p3, di3, ta3, tb3, dip3, tc3, &
+     nxmsize, nymsize, nzmsize, ph2, ph3)
 
   USE param
   USE variables
@@ -1001,7 +1003,28 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
 
   REAL(mytype) :: invpr
 
+  !! Stuff defined on the staggered nodes
+  TYPE(DECOMP_INFO) :: ph2,ph3
+  integer :: nxmsize,nymsize,nzmsize
+
+  real(mytype),dimension(ph3%zst(1):ph3%zen(1),ph3%zst(2):ph3%zen(2),nzmsize) :: d2pdx2p3
+  real(mytype),dimension(ph3%zst(1):ph3%zen(1),ph3%zst(2):ph3%zen(2),zsize(3)) :: tc3, dip3 
+  real(mytype),dimension(ph3%yst(1):ph3%yen(1),nymsize,ysize(3)) :: tc2
+  real(mytype),dimension(ph3%yst(1):ph3%yen(1),ysize(2),ysize(3)) :: td2,dip2
+  real(mytype),dimension(nxmsize,xsize(2),xsize(3)) :: tc1
+
   invpr = 1._mytype / pr
+
+  !! Get from Zp to Xv
+  call interiz6(tc3,d2pdx2p3,dip3,sz,cifip6z,cisip6z,ciwip6z,cifz6,cisz6,ciwz6,&
+       (ph3%zen(1)-ph3%zst(1)+1),(ph3%zen(2)-ph3%zst(2)+1),nzmsize,zsize(3),1)
+  
+  call transpose_z_to_y(tc3,tc2,ph3)
+  call interiy6(td2,tc2,dip2,sy,cifip6y,cisip6y,ciwip6y,cify6,cisy6,ciwy6,&
+       (ph3%yen(1)-ph3%yst(1)+1),nymsize,ysize(2),ysize(3),1)
+  call transpose_y_to_x(td2,tc1,ph2)
+  call interi6(ta1,tc1,di1,sx,cifip6,cisip6,ciwip6,cifx6,cisx6,ciwx6,&
+       nxmsize,xsize(1),xsize(2),xsize(3),1)
 
   !! Get to Z and work backwards
   call transpose_x_to_y(temperature1, temperature2)
@@ -1027,6 +1050,9 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
 
   !! Back to X
   call transpose_y_to_x(ta2, tb1)
+
+  !! Add the adjoint pressure Laplacian term
+  tb1(:,:,:) = tb1(:,:,:) + (xnu * invpr) * ta1(:,:,:) !! XXX Assuming press0 = 1
   
   call derx (ta1, temperature1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
   ta1(:,:,:) = rhob1(:,:,:) * uxb1(:,:,:) * ta1(:,:,:) + tb1(:,:,:)
@@ -1038,6 +1064,9 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
 
   !! Divide thru by density
   ta1(:,:,:) = ta1(:,:,:) / rhob1(:,:,:)
+
+  !! Sign should be negative (we travel back in time)
+  ta1(:,:,:) = -ta1(:,:,:)
 
 ENDSUBROUTINE convdiff_temperature_adj
 

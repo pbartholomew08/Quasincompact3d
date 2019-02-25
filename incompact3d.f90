@@ -458,7 +458,8 @@ PROGRAM incompact3d
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
       !-----------------------------------------------------------------------------------
 
-      !does not matter -->output=DIV U=0 (in dv3)
+      ! In adjoint mode, dv3 will contain Lapl(p_+) = (1/dt) (div (rho u_+)* - u dot grad(rho))
+      ! Otherwise doesn't matter
       call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
            td2,te2,tf2,di2,ta2,tb2,tc2,&
            ta3,tb3,tc3,di3,td3,te3,tf3,divu3,dv3,&
@@ -471,10 +472,11 @@ PROGRAM incompact3d
 
       if (iadj_mode.and.(ilmn.ne.0)) then
          !! ta1 contains the -ddt term
-         call convdiff_temperature_adj(uxb1,uyb1,uzb1,rho1,rhob1,temperature1,di1,ta1,tb1,&
-              ta2,tb2,tc2,temperature2,di2,td2,te2,&
-              ta3,tb3,temperature3,di3,tc3,td3)
-         call intttemperature(temperature1,temperatures1,temperaturess1,-ta1)
+         call convdiff_temperature_adj(uxb1,uyb1,uzb1,rho1,rhob1,temperature1,di1,ta1,tb1,tc1,&
+              ta2,tb2,tc2,temperature2,di2,td2,te2,tf2,tg2,th2,&
+              ta3,tb3,temperature3,dv3,di3,tc3,td3,te3,tf3,&
+              nxmsize,nymsize,nzmsize,ph2,ph3)
+         call intttemperature(temperature1,temperatures1,temperaturess1,ta1)
       endif
 
       ! Move time to end of substep
