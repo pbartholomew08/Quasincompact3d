@@ -1455,6 +1455,105 @@ SUBROUTINE calcrho_eos(rho1, temperature1, massfrac1, pressure0, arrsize)
 ENDSUBROUTINE calcrho_eos
 
 !!--------------------------------------------------------------------
+!!  SUBROUTINE: calcrho_eos_adj
+!! DESCRIPTION: Given the new temperature field, calculate density
+!!              using the equation of state.
+!!--------------------------------------------------------------------
+SUBROUTINE calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, pxb1, pyb1, pzb1, &
+     temperature1, temperatureb1, &
+     ta1, tb1, tc1, td1, di1, &
+     ta2, tb2, tc2, te2, tf2, di2, &
+     ta3, tb3, tc3, tf3, di3)
+
+  USE variables
+  USE param
+  USE decomp_2d
+
+  IMPLICIT NONE
+
+  REAL(mytype) :: ONETHIRD = 1._mytype / 3._mytype
+  
+  !! INPUTS
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: rhob1, ux1, uy1, uz1, &
+       uxb1, uyb1, uzb1, pxb1, pyb1, pzb1, temperature1, temperatureb1
+
+  !! OUTPUTS
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: rho1
+
+  !! WORK ARRAYS
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, tc1, td1, di1
+  REAL(mytype), DIMENSION(ysize(1), ysize(2), ysize(3)) :: uy2, uz2, ta2, tb2, tc2, te2, tf2, di2
+  REAL(mytype), DIMENSION(zsize(1), zsize(2), zsize(3)) :: uz3, ta3, tb3, tc3, tf3, di3
+
+  !!------------------------------------------------------------------
+  !! Calculate viscous stress tensor term
+  !!------------------------------------------------------------------
+  CALL derx (ta1,uxb1,di1,sx,ffx,fsx,fwx,xsize(1),xsize(2),xsize(3),0)
+
+  CALL transpose_x_to_y(uy1, uy2)
+  CALL transpose_x_to_y(uz1, uz2)
+  CALL transpose_x_to_y(uyb1, te2) ! uyb
+  CALL transpose_x_to_y(uzb1, tf2) ! uzb
+  CALL transpose_x_to_y(ta1, ta2)
+
+  CALL dery (tb2,te2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+
+  !! Y-contribution to divu
+  tb2(:,:,:) = tb2(:,:,:) + ta2(:,:,:)
+
+  CALL transpose_y_to_z(uz2, uz3)
+  CALL transpose_y_to_z(tf2, tf3) ! uzb
+  CALL transpose_y_to_z(tb2, tb3)
+
+  CALL derz (tc3,tf3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
+  CALL derzz (ta3,tf3,di3,sz,sfz ,ssz ,swz ,zsize(1),zsize(2),zsize(3),0)
+
+  !! Z-contribution to divu
+  tb3(:,:,:) = tb3(:,:,:) + tc3(:,:,:)
+
+  CALL derz(tc3, tb3, di3, sz, ffz, fsz, fwz, zsize(1), zsize(2), zsize(3), 0)
+  ta3(:,:,:) = uz3(:,:,:) * (ta3(:,:,:) + ONETHIRD * tc3(:,:,:))
+
+  CALL transpose_z_to_y(ta3, ta2)
+  CALL transpose_z_to_y(tb3, tc2)
+  
+  CALL deryy (tb2,te2,di2,sy,sfy,ssy,swy,ysize(1),ysize(2),ysize(3),0)
+  CALL dery(tf2, tc2, di2, sy, ffy, fsy, fwy, ppy, ysize(1), ysize(2), ysize(3), 0)
+
+  ta2(:,:,:) = ta2(:,:,:) + uy2(:,:,:) * (tb2 + ONETHIRD * tf2(:,:,:))
+
+  CALL transpose_y_to_x(ta2, ta1)
+  CALL transpose_y_to_x(tc2, tc1)
+  
+  CALL derxx (tb1,uxb1,di1,sx,sfx ,ssx ,swx ,xsize(1),xsize(2),xsize(3),0)
+  call derx(td1, tc1, di1, sx, ffx, fsx, fwx, xsize(1), xsize(2), xsize(3), 0)
+
+  ta1(:,:,:) = ta1(:,:,:) + ux1(:,:,:) * (tb1(:,:,:) + ONETHIRD * td1(:,:,:))
+  
+  !!------------------------------------------------------------------
+  !! Calculate temperature term
+  !!------------------------------------------------------------------
+  CALL transpose_x_to_y(temperatureb1, ta2)
+  CALL transpose_y_to_z(ta2, ta3)
+  CALL derzz (tb3,ta3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
+  
+  CALL transpose_z_to_y(tb3, tc2)
+  CALL deryy (tb2,ta2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
+  tb2(:,:,:) = tb2(:,:,:) + tc2(:,:,:)
+
+  CALL transpose_y_to_x(tb2, tc1)
+  call derxx (tb1,tc1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+  
+  !!------------------------------------------------------------------
+  !! Add it all together
+  !!------------------------------------------------------------------
+  rho1(:,:,:) = - (xnu * ta1(:,:,:) &
+       - (ux1(:,:,:) * pxb1(:,:,:) + uy1(:,:,:) * pyb1(:,:,:) + uz1(:,:,:) * pzb1(:,:,:))) &
+       - (temperature1(:,:,:) / rhob1(:,:,:)) * (xnu / pr) * tb1(:,:,:)
+  
+ENDSUBROUTINE calcrho_eos_adj
+
+!!--------------------------------------------------------------------
 !!  SUBROUTINE: calcvisc
 !! DESCRIPTION: Calculate the fluid viscosity as a function of
 !!              temperature/density.
