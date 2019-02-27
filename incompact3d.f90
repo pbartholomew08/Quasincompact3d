@@ -249,21 +249,31 @@ PROGRAM incompact3d
       endif
 
       if (ilmn.ne.0) then
-         if (isolvetemp.eq.0) then
-            ! Update density
-            !    X->Y->Z->Y->X
-            ! XXX uz3,rho3 and uy2,rho2 and rho1 should already be up to date, could go from 8 to 2
-            !     transpose operations by operating on Z->Y->X.
-            ! XXX tg1 contains the density forcing term.
-            call conv_density(ux1,uy1,uz1,rho1,di1,tg1,th1,ti1,td1,&
-                 uy2,uz2,rho2,di2,ta2,tb2,tc2,td2,&
-                 uz3,rho3,divu3,di3,ta3,tb3,ep1)
+         if (.not.iadj_mode) then
+            if (isolvetemp.eq.0) then
+               ! Update density
+               !    X->Y->Z->Y->X
+               ! XXX uz3,rho3 and uy2,rho2 and rho1 should already be up to date, could go from 8 to 2
+               !     transpose operations by operating on Z->Y->X.
+               ! XXX tg1 contains the density forcing term.
+               call conv_density(ux1,uy1,uz1,rho1,di1,tg1,th1,ti1,td1,&
+                    uy2,uz2,rho2,di2,ta2,tb2,tc2,td2,&
+                    uz3,rho3,divu3,di3,ta3,tb3,ep1)
+            else
+               ! Update temperature
+               call convdiff_temperature(ux1,uy1,uz1,rho1,temperature1,di1,tg1,th1,&
+                    uy2,uz2,rho2,temperature2,di2,ta2,tb2,&
+                    uz3,rho3,temperature3,di3,ta3,tb3)
+               call eval_densitycoeffs(rho1,temperature1,tg1,rhos1,rhoss1,rhos01,drhodt1,1)
+               call intttemperature(temperature1,temperatures1,temperaturess1,tg1)
+            endif
          else
-            ! Update temperature
-            call convdiff_temperature(ux1,uy1,uz1,rho1,temperature1,di1,tg1,th1,&
-                 uy2,uz2,rho2,temperature2,di2,ta2,tb2,&
-                 uz3,rho3,temperature3,di3,ta3,tb3)
-            call eval_densitycoeffs(rho1,temperature1,tg1,rhos1,rhoss1,rhos01,drhodt1,1)
+            !! tg1 contains the -ddt term
+            !! pp3corr contains lapl(p_+) - computed in previous timestep / initialisation
+            call convdiff_temperature_adj(uxb1,uyb1,uzb1,rho1,rhob1,temperature1,di1,tg1,th1,ti1,&
+                 ta2,tb2,tc2,temperature2,di2,td2,te2,tf2,tg2,th2,&
+                 ta3,tb3,temperature3,pp3corr,di3,tc3,td3,te3,tf3,&
+                 nxmsize,nymsize,nzmsize,ph2,ph3)
             call intttemperature(temperature1,temperatures1,temperaturess1,tg1)
          endif
       endif
@@ -444,12 +454,14 @@ PROGRAM incompact3d
       t2poiss = MPI_WTIME()
       tpoisstotal = tpoisstotal + (t2poiss - t1poiss)
 
-      if (iadj_mode) then
+      if (.not.iadj_mode) then
+         pp3(:,:,:) = pp3corr(:,:,:) ! Set pressure field
+      else
          !! Store lapl(p_+)
          dv3(:,:,:) = pp3(:,:,:)
+         pp3(:,:,:) = pp3corr(:,:,:) ! Set pressure field
+         pp3corr(:,:,:) = dv3(:,:,:)
       endif
-      
-      pp3(:,:,:) = pp3corr(:,:,:) ! Set pressure field
 
       if (nrank.eq.0) then
         print *, "Solved Poisson equation in ", poissiter, " iteration(s), took ", t2poiss - t1poiss, "s"
@@ -463,15 +475,6 @@ PROGRAM incompact3d
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
       !-----------------------------------------------------------------------------------
-
-      if (iadj_mode.and.(ilmn.ne.0)) then
-         !! ta1 contains the -ddt term
-         call convdiff_temperature_adj(uxb1,uyb1,uzb1,rho1,rhob1,temperature1,di1,ta1,tb1,tc1,&
-              ta2,tb2,tc2,temperature2,di2,td2,te2,tf2,tg2,th2,&
-              ta3,tb3,temperature3,dv3,di3,tc3,td3,te3,tf3,&
-              nxmsize,nymsize,nzmsize,ph2,ph3)
-         call intttemperature(temperature1,temperatures1,temperaturess1,ta1)
-      endif
 
       !! Doesn't matter: store in dv3
       call divergence (ux1,uy1,uz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
