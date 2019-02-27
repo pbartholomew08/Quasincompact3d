@@ -1037,15 +1037,15 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
   call transpose_y_to_z(rhob2, rhob3)
 
   call derz(ta3, temperature3, di3, sz, ffzp, fszp, fwzp, zsize(1), zsize(2), zsize(3), 1)
-  call derzz(tb3, temperature3, di3, sz, sfzp, sszp, swzp, zsize(1), zsize(2), zsize(3), 1)
-  ta3(:,:,:) = rhob3(:,:,:) * uzb3(:,:,:) * ta3(:,:,:) + (xnu * invpr) * tb3(:,:,:)
+  call derzz(tb3, temperature3 / rhob3, di3, sz, sfzp, sszp, swzp, zsize(1), zsize(2), zsize(3), 1)
+  ta3(:,:,:) = uzb3(:,:,:) * ta3(:,:,:) + (xnu * invpr) * tb3(:,:,:)
 
   !! Back to Y
   call transpose_z_to_y(ta3, tb2)
   
   call dery (ta2, temperature2, di2, sy, ffyp, fsyp, fwyp, ppy, ysize(1), ysize(2), ysize(3), 1)
-  ta2(:,:,:) = rhob2(:,:,:) * uyb2(:,:,:) * ta2(:,:,:) + tb2(:,:,:)
-  call deryy (tb2,temperature2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
+  ta2(:,:,:) = uyb2(:,:,:) * ta2(:,:,:) + tb2(:,:,:)
+  call deryy (tb2,temperature2 / rhob2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1)
   ta2(:,:,:) = ta2(:,:,:) + (xnu * invpr) * tb2(:,:,:)
 
   !! Back to X
@@ -1055,15 +1055,12 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
   tb1(:,:,:) = tb1(:,:,:) + (xnu * invpr) * ta1(:,:,:) !! XXX Assuming press0 = 1
   
   call derx (ta1, temperature1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
-  ta1(:,:,:) = rhob1(:,:,:) * uxb1(:,:,:) * ta1(:,:,:) + tb1(:,:,:)
-  call derxx (tb1,temperature1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
+  ta1(:,:,:) = uxb1(:,:,:) * ta1(:,:,:) + tb1(:,:,:)
+  call derxx (tb1,temperature1 / rhob1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
   ta1(:,:,:) = ta1(:,:,:) + (xnu * invpr) * tb1(:,:,:)
 
   !! Add the 'density' term
   ta1(:,:,:) = ta1(:,:,:) - rhob1(:,:,:) * rho1(:,:,:)
-
-  !! Divide thru by density
-  ta1(:,:,:) = ta1(:,:,:) / rhob1(:,:,:)
 
   !! Sign should be negative (we travel back in time)
   ta1(:,:,:) = -ta1(:,:,:)
