@@ -55,9 +55,6 @@ PROGRAM incompact3d
 
   TYPE(DECOMP_INFO) :: phG,ph1,ph2,ph3,ph4
 
-  !! Do we want to do adjoints?
-  iadj_mode = .FALSE.
-
   CALL MPI_INIT(code)
   call decomp_2d_init(nx,ny,nz,p_row,p_col)
   !start from 1 == true
@@ -173,6 +170,15 @@ PROGRAM incompact3d
     if (nrank.eq.0) then
       write(*,1001) itime,t
 1001  format('Time step =',i7,', Time unit =',F9.3)
+    endif
+
+    if (iadj_solver) then
+       !! Read/write forward solution depending on mode
+       if (iadj_mode) then !! READ
+          call checkpoint(uxb1,uyb1,uzb1,1,'ParChan0000000')
+       else !! WRITE
+          call checkpoint(uxb1,uyb1,uzb1,0,'ParChan0000000')
+       endif
     endif
     
     do itr=1,iadvance_time

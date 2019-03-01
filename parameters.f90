@@ -46,7 +46,9 @@ implicit none
 real(mytype) :: re, theta, cfl,cf2 
 integer :: longueur ,impi,j
 character :: a*80
+integer :: solve_adjoint
 
+!! Set some defaults
 #ifdef DOUBLE_PREC 
 pi=dacos(-1.d0) 
 #else
@@ -55,6 +57,9 @@ pi=acos(-1.)
 
 twopi=2.*pi
 
+iadj_solver=.FALSE.
+
+!! Read runtime settings
 1000 format(a,80x) 
 1003 format(a,80x)
 open(10,file='incompact3d.prm',status='unknown',form='formatted') 
@@ -114,7 +119,12 @@ read (10,*) cex
 read (10,*) cey 
 read (10,*) cez 
 read (10,*) ra 
-read (10,1000) a 
+read (10,1000) a
+read (10,1000) a !! Adjoint mode settings
+read (10,1000) a
+read (10,*) solve_adjoint
+read (10,*) iadj_dir !! -1 = bck (adjoint only), 0 = solve fwd then bck, 1 = solve fwd only (but generate checkpoints)
+read (10,1000) a
 close(10) 
 if (nrank==0) then
 print *,'==========================================================='
@@ -226,6 +236,22 @@ if (ilmn.ne.0) then
       print *, "Using rho0 = harmonic_avg(rho) in var-coeff Poisson equation"
     endif
   endif
+endif
+
+if (solve_adjoint.ne.0) then
+   print *, "Adjoint solver: Enabled"
+   iadj_solver = .TRUE.
+
+   if (iadj_dir.lt.0) then
+      print *, "Solving adjoint equations only"
+   else if (iadj_dir.gt.0) then
+      print *, "Solving forward equations only"
+   else
+      print *, "Solving forward then adjoint equations"
+   endif
+else
+   print *, "Adjoint solver: Disabled"
+   iadj_solver = .FALSE.
 endif
 
 if (iskew.eq.0) then

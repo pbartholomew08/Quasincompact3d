@@ -151,7 +151,8 @@ use decomp_2d, only : mytype
        nchamp*80,filepath*80, fileturb*80, filevisu*80 
   real(mytype), dimension(5) :: adt,bdt,cdt,gdt
 
-  logical :: iadj_mode
+  logical :: iadj_mode, iadj_solver
+  integer :: iadj_dir
 end module param
 
 module IBM
