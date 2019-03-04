@@ -175,9 +175,9 @@ PROGRAM incompact3d
     if (iadj_solver) then
        !! Read/write forward solution depending on mode
        if (iadj_mode) then !! READ
-          call checkpoint(uxb1,uyb1,uzb1,1,'ParChan0000000')
+          call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,'checkpt')
        else !! WRITE
-          call checkpoint(uxb1,uyb1,uzb1,0,'ParChan0000000')
+          call checkpoint(ux1,uy1,uz1,rho1,temperature1,pp3,0,'checkpt')
        endif
     endif
     

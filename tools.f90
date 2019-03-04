@@ -2296,7 +2296,7 @@ ENDSUBROUTINE calc_sedimentation
 !!     AUTHOR: Ubaid Ali Qadri
 !!   MODIFIED: Paul Bartholomew
 !!*************************************************************************************************
-subroutine checkpoint(ux,uy,uz,iload,filename)
+subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,filename,phG)
 
   USE decomp_2d
   USE decomp_2d_io
@@ -2306,42 +2306,45 @@ subroutine checkpoint(ux,uy,uz,iload,filename)
 
   implicit none
 
-  !TYPE(DECOMP_INFO) :: phG
+  TYPE(DECOMP_INFO) :: phG
+
   integer :: i,j,k,iload,nzmsize,fh,ierror,is,code
+  real(mytype), dimension(xsize(1),xsize(2),xsize(3)) :: ux,uy,uz,rho,temperature
+  real(mytype), dimension(phG%zst(1):phG%zen(1),phG%zst(2):phG%zen(2),phG%zst(3):phG%zen(3)) :: pp3
   integer :: ierror_o=0 !error to open sauve file during restart
-  real(mytype), dimension(xsize(1),xsize(2),xsize(3)) :: ux,uy,uz
   character(len=*), intent(in) :: filename
-  !real(mytype), dimension(xsize(1),xsize(2),xsize(3),nphi) :: phi
-  !real(mytype), dimension(phG%zst(1):phG%zen(1),phG%zst(2):phG%zen(2),phG%zst(3):phG%zen(3)) :: pp
   integer (kind=MPI_OFFSET_KIND) :: filesize, disp
   real(mytype) :: xdt
   integer, dimension(2) :: dims, dummy_coords
   logical, dimension(2) :: dummy_periods
   character(len=30) :: filestart
-
-  if (iload.eq.0) then !Writing restart
-     if (nrank==0) print *,'===========================================================<<<<<'
-     if (nrank==0) print *,'Writing checkpoint',itime/isave
-     !if (nrank==0) print *,'File size',real((s3df*16.)*1e-9,4),'GB'
-  end if
-
-  !write(filename,"('ParChan',I7.7)") itime
-  !write(filestart,"('ParChan',I7.7)") ifirst-1
-
+  
+  if (nrank.eq.0) then
+     print *,'===========================================================<<<<<'
+  endif
+  
   if (iload.eq.0) then !write
+     if (nrank.eq.0) then
+        print *,'Writing checkpoint',itime/isave
+     endif
      call MPI_FILE_OPEN(MPI_COMM_WORLD, filename, &
           MPI_MODE_CREATE+MPI_MODE_WRONLY, MPI_INFO_NULL, &
           fh, ierror)
      filesize = 0_MPI_OFFSET_KIND
      call MPI_FILE_SET_SIZE(fh,filesize,ierror)  ! guarantee overwriting
      disp = 0_MPI_OFFSET_KIND
+     
      call decomp_2d_write_var(fh,disp,1,ux)
      call decomp_2d_write_var(fh,disp,1,uy)
      call decomp_2d_write_var(fh,disp,1,uz)
-     !call decomp_2d_write_var(fh,disp,1,pp3,phG)
+     call decomp_2d_write_var(fh,disp,1,rho)
+     call decomp_2d_write_var(fh,disp,1,temperature)
+     call decomp_2d_write_var(fh,disp,1,pp3,phG)
      call MPI_FILE_CLOSE(fh,ierror)
   else
-     if (nrank==0) print *,'Reading state from file:', filename
+     if (nrank.eq.0) then
+        print *,'Reading state from file:', filename
+     endif
      call MPI_FILE_OPEN(MPI_COMM_WORLD, filename, &
           MPI_MODE_RDONLY, MPI_INFO_NULL, &
           fh, ierror_o)
@@ -2349,7 +2352,9 @@ subroutine checkpoint(ux,uy,uz,iload,filename)
      call decomp_2d_read_var(fh,disp,1,ux)
      call decomp_2d_read_var(fh,disp,1,uy)
      call decomp_2d_read_var(fh,disp,1,uz)
-     !call decomp_2d_read_var(fh,disp,1,pp3,phG)
+     call decomp_2d_read_var(fh,disp,1,rho)
+     call decomp_2d_read_var(fh,disp,1,temperature)
+     call decomp_2d_read_var(fh,disp,1,pp3,phG)
      call MPI_FILE_CLOSE(fh,ierror_o)
   endif
 
