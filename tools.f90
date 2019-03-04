@@ -2296,7 +2296,7 @@ ENDSUBROUTINE calc_sedimentation
 !!     AUTHOR: Ubaid Ali Qadri
 !!   MODIFIED: Paul Bartholomew
 !!*************************************************************************************************
-subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,filename,phG)
+subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
 
   USE decomp_2d
   USE decomp_2d_io
@@ -2312,12 +2312,21 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,filename,phG)
   real(mytype), dimension(xsize(1),xsize(2),xsize(3)) :: ux,uy,uz,rho,temperature
   real(mytype), dimension(phG%zst(1):phG%zen(1),phG%zst(2):phG%zen(2),phG%zst(3):phG%zen(3)) :: pp3
   integer :: ierror_o=0 !error to open sauve file during restart
-  character(len=*), intent(in) :: filename
+  character(len=30) :: filename
   integer (kind=MPI_OFFSET_KIND) :: filesize, disp
   real(mytype) :: xdt
   integer, dimension(2) :: dims, dummy_coords
   logical, dimension(2) :: dummy_periods
   character(len=30) :: filestart
+
+1010 format ("checkpoint", I10.10)
+  if (iload.eq.0) then
+     !! We're in forward mode, writing out checkpoints
+     write(filename, 1010) itime - 1
+  else
+     !! We're in reverse mode, reading checkpoints (backwards in time)
+     write(filename, 1010) ilast - (itime - 1)
+  endif
   
   if (nrank.eq.0) then
      print *,'===========================================================<<<<<'
@@ -2325,7 +2334,7 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,filename,phG)
   
   if (iload.eq.0) then !write
      if (nrank.eq.0) then
-        print *,'Writing checkpoint',itime/isave
+        print *,'Writing checkpoint:', filename
      endif
      call MPI_FILE_OPEN(MPI_COMM_WORLD, filename, &
           MPI_MODE_CREATE+MPI_MODE_WRONLY, MPI_INFO_NULL, &
