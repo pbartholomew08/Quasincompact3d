@@ -2325,7 +2325,7 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
      write(filename, 1010) itime - 1
   else
      !! We're in reverse mode, reading checkpoints (backwards in time)
-     write(filename, 1010) ilast - (itime - 1)
+     write(filename, 1010) (ilast - 1) - (itime - 1)
   endif
   
   if (nrank.eq.0) then
