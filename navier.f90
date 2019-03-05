@@ -1996,6 +1996,66 @@ subroutine init (ux1,uy1,uz1,rho1,temperature1,massfrac1,ep1,phi1,&
 end subroutine init
 
 !********************************************************************
+!  SUBROUTINE: init_adj
+!      AUTHOR: Paul Bartholomew
+! DESCRIPTION: Computes the 'initial conditions' for the adjoint
+!              equations - to do this the user must supply the
+!              derivative of the objective function wrt the dependent
+!              variables.
+!********************************************************************
+subroutine init_adj(ux1, uy1, uz1, temperature1, &
+     gx1, gy1, gz1, temperatures1, &
+     hx1, hy1, hz1, temperaturess1, &
+     uxb1, uyb1, uzb1, rhob1, temperatureb1, ppb3, &
+     dJdux1, dJduy1, dJduz1, dJdT1, &
+     nzmsize, ph1)
+
+  USE decomp_2d
+  USE param
+  USE variables
+  
+  IMPLICIT NONE
+  
+  TYPE(DECOMP_INFO) :: ph1
+  INTEGER, INTENT(IN) :: nzmsize
+
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: ux1, uy1, uz1, rho1, temperature1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: gx1, gy1, gz1, temperatures1
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: hx1, hy1, hz1, temperaturess1
+  
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)) :: dJdux1, dJduy1, dJduz1, dJdT1
+  
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: uxb1, uyb1, uzb1, rhob1, &
+       temperatureb1
+  REAL(mytype),DIMENSION(ph1%zst(1):ph1%zen(1),ph1%zst(2):ph1%zen(2),nzmsize), INTENT(IN) :: ppb3
+
+  !! Here the user specifies the derivative of the objective function wrt the background variables
+  dJdux1(:,:,:) = 0._mytype
+  dJduy1(:,:,:) = 0._mytype
+  dJduz1(:,:,:) = 0._mytype
+  dJdT1(:,:,:) = 0._mytype
+
+  !! The initial conditions are set by equating the derivatives and the adjoint variables
+  ux1(:,:,:) = dJdux1(:,:,:) / rhob1(:,:,:)
+  uy1(:,:,:) = dJduy1(:,:,:) / rhob1(:,:,:)
+  uz1(:,:,:) = dJduz1(:,:,:) / rhob1(:,:,:)
+  temperature1(:,:,:) = dJdT1(:,:,:)
+
+  !! Finally setup the old arrays
+  gx1(:,:,:) = ux1(:,:,:)
+  gy1(:,:,:) = uy1(:,:,:)
+  gz1(:,:,:) = uz1(:,:,:)
+
+  hx1(:,:,:) = gx1(:,:,:)
+  hy1(:,:,:) = gy1(:,:,:)
+  hz1(:,:,:) = gz1(:,:,:)
+
+  temperatures1(:,:,:) = temperature1(:,:,:)
+  temperaturess1(:,:,:) = temperatures1(:,:,:)
+  
+end subroutine init_adj
+
+!********************************************************************
 !
 ! 
 !********************************************************************

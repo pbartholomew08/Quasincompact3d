@@ -91,13 +91,39 @@ PROGRAM incompact3d
 
   totalpoissiter = 0
   if (ilit.eq.0) then
-    t = 0._mytype
-    itime = 0
-    call init(ux1,uy1,uz1,rho1,temperature1,massfrac1,ep1,phi1,&
-         gx1,gy1,gz1,rhos1,temperatures1,massfracs1,phis1,&
-         hx1,hy1,hz1,rhoss1,temperaturess1,massfracss1,phiss1,&
-         pressure0)
-    pp3star(:,:,:) = 0._mytype
+     if (.not.iadj_mode) then
+        t = 0._mytype
+        itime = 0
+        call init(ux1,uy1,uz1,rho1,temperature1,massfrac1,ep1,phi1,&
+             gx1,gy1,gz1,rhos1,temperatures1,massfracs1,phis1,&
+             hx1,hy1,hz1,rhoss1,temperaturess1,massfracss1,phiss1,&
+             pressure0)
+     else
+        itime = 1
+        call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG)
+
+        call init_adj(ux1, uy1, uz1, temperature1, &
+             gx1, gy1, gz1, temperatures1, &
+             hx1, hy1, hz1, temperaturess1, &
+             uxb1, uyb1, uzb1, rhob1, temperatureb1, ppb3, &
+             ta1, tb1, tc1, td1, &
+             nzmsize, ph1)
+
+        pp3(:,:,:) = 0._mytype !! I don't see that there's any other way to compute this.
+
+        !! Compute rho adjoint from EOS
+        call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
+             ta3,tc3,di3,ppb3,nxmsize,nymsize,nzmsize,ph2,ph3)
+        call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
+              temperature1, temperatureb1, &
+              ta1, tb1, tc1, td1, di1, &
+              ta2, tb2, tc2, te2, tf2, di2, &
+              ta3, tb3, tc3, tf3, di3)
+        !! XXX restore pressure gradients
+        call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
+             ta3,tc3,di3,pp3,nxmsize,nymsize,nzmsize,ph2,ph3)
+     endif
+     pp3star(:,:,:) = 0._mytype
   else
     call restart(ux1,uy1,uz1,rho1,temperature1,ep1,pp3,phi1,&
          gx1,gy1,gz1,rhos1,px1,py1,pz1,phis1,&
@@ -173,10 +199,14 @@ PROGRAM incompact3d
     endif
 
     if (iadj_solver) then
-       !! Read/write forward solution depending on mode
-       if (iadj_mode) then !! READ
-          call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG)
-       else !! WRITE
+       if (iadj_mode) then
+          if (itime.gt.ifirst) then
+             !! READ background flow
+             !! XXX we already read first checkpoint at initialisation
+             call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG)
+          endif
+       else
+          !! Forward mode: write out solution checkpoint
           call checkpoint(ux1,uy1,uz1,rho1,temperature1,pp3,0,phG)
        endif
     endif
@@ -558,7 +588,6 @@ PROGRAM incompact3d
     !         rho3, ux3, uy3, uz3, ta3, tb3, tc3, di3)
     !    CALL calc_sedimentation(rho1, ta1, rho2, ta2, rho3, ta3)
     ! ENDIF
-
   enddo
 
   t2=MPI_WTIME()-t1
