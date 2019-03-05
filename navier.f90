@@ -1277,27 +1277,77 @@ SUBROUTINE set_temp_bcs(temperature1, ux1, uy1, uz1)
   INTEGER, DIMENSION(2) :: dims, dummy_coords
   LOGICAL, DIMENSION(2) :: dummy_periods
 
-  IF (nclx.EQ.2) THEN
-  ENDIF
-
-  IF ((ncly.EQ.2).OR.(nclz.EQ.2)) THEN
+  IF ((ncly.EQ.2).OR.(nclz.EQ.2).OR.iadj_mode) THEN
      ! determine the processor grid in use
      call MPI_CART_GET(DECOMP_2D_COMM_CART_X, 2, dims, dummy_periods, dummy_coords, ierr)
   ENDIF
 
-  IF (ncly.EQ.2) THEN
+  IF (.NOT.iadj_mode) THEN
+     IF (nclx.EQ.2) THEN
+     ENDIF
+
+     IF (ncly.EQ.2) THEN
+        IF (dims(1).EQ.1) THEN
+           DO k = 1, xsize(3)
+              j = 1
+              DO i = 1, xsize(1)
+                 !! Zero gradient
+                 temperature1(i, j, k) = temperature1(i, j + 1, k)
+              ENDDO
+
+              j = xsize(2)
+              DO i = 1, xsize(1)
+                 !! Zero gradient
+                 temperature1(i, j, k) = temperature1(i, j - 1, k)
+              ENDDO
+           ENDDO
+        ELSE
+           IF (xstart(2).EQ.1) THEN
+              j = 1
+              DO k = 1, xsize(3)
+                 DO i = 1, xsize(1)
+                    !! Zero gradient
+                    temperature1(i, j, k) = temperature1(i, j + 1, k)
+                 ENDDO
+              ENDDO
+           ENDIF
+
+           IF (ny - (nym / dims(1)).EQ.xstart(2)) THEN
+              j = xsize(2)
+              DO k = 1, xsize(3)
+                 DO i = 1, xsize(1)
+                    !! Zero gradient
+                    temperature1(i, j, k) = temperature1(i, j - 1, k)
+                 ENDDO
+              ENDDO
+           ENDIF
+        ENDIF
+     ENDIF
+
+     IF (nclz.EQ.2) THEN
+     ENDIF
+  ELSE !! Adjoint (under high-Re apprixmation T_+ = 0 on all boundaries)
+     !! BC-X
+     DO k = 1, xsize(3)
+        DO j = 1, xsize(2)
+           i = 1
+           temperature1(i, j, k) = 0._mytype
+           i = xsize(1)
+           temperature1(i, j, k) = 0._mytype
+        ENDDO
+     ENDDO
+
+     !! BC-Y
      IF (dims(1).EQ.1) THEN
         DO k = 1, xsize(3)
            j = 1
            DO i = 1, xsize(1)
-              !! Zero gradient
-              temperature1(i, j, k) = temperature1(i, j + 1, k)
+              temperature1(i, j, k) = 0._mytype
            ENDDO
            
            j = xsize(2)
            DO i = 1, xsize(1)
-              !! Zero gradient
-              temperature1(i, j, k) = temperature1(i, j - 1, k)
+              temperature1(i, j, k) = 0._mytype
            ENDDO
         ENDDO
      ELSE
@@ -1305,25 +1355,56 @@ SUBROUTINE set_temp_bcs(temperature1, ux1, uy1, uz1)
            j = 1
            DO k = 1, xsize(3)
               DO i = 1, xsize(1)
-                 !! Zero gradient
-                 temperature1(i, j, k) = temperature1(i, j + 1, k)
+                 temperature1(i, j, k) = 0._mytype
               ENDDO
            ENDDO
         ENDIF
-
+        
         IF (ny - (nym / dims(1)).EQ.xstart(2)) THEN
            j = xsize(2)
            DO k = 1, xsize(3)
               DO i = 1, xsize(1)
                  !! Zero gradient
-                 temperature1(i, j, k) = temperature1(i, j - 1, k)
+                 temperature1(i, j, k) = 0._mytype
               ENDDO
            ENDDO
         ENDIF
      ENDIF
-  ENDIF
 
-  IF (nclz.EQ.2) THEN
+     !! BC-Z
+     IF (dims(2).EQ.1) THEN
+        k = 1
+        DO j = 1, xsize(2)
+           DO i = 1, xsize(1)
+              temperature1(i, j, k) = 0._mytype
+           ENDDO
+        ENDDO
+
+        k = xsize(3)
+        DO j = 1, xsize(2)
+           DO i = 1, xsize(1)
+              temperature1(i, j, k) = 0._mytype
+           ENDDO
+        ENDDO
+     ELSE
+        IF (xstart(3).EQ.1) THEN
+           k = 1
+           DO j = 1, xsize(2)
+              DO i = 1, xsize(1)
+                 temperature1(i, j, k) = 0._mytype
+              ENDDO
+           ENDDO
+        ENDIF
+
+        IF (nz - (nzm - dims(2)).EQ.xstart(3)) THEN
+           k = xsize(3)
+           DO j = 1, xsize(2)
+              DO i = 1, xsize(1)
+                 temperature1(i, j, k) = 0._mytype
+              ENDDO
+           ENDDO
+        ENDIF
+     ENDIF
   ENDIF
   
 ENDSUBROUTINE set_temp_bcs
