@@ -2039,7 +2039,7 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
   ux1(:,:,:) = dJdux1(:,:,:) / rhob1(:,:,:)
   uy1(:,:,:) = dJduy1(:,:,:) / rhob1(:,:,:)
   uz1(:,:,:) = dJduz1(:,:,:) / rhob1(:,:,:)
-  temperature1(:,:,:) = dJdT1(:,:,:)
+  temperature1(:,:,:) = dJdT1(:,:,:) / rhob1(:,:,:)
 
   !! Finally setup the old arrays
   gx1(:,:,:) = ux1(:,:,:)
