@@ -1478,6 +1478,33 @@ SUBROUTINE set_massfrac_bcs(massfrac1, ux1, uy1, uz1)
   
 ENDSUBROUTINE set_massfrac_bcs
 
+SUBROUTINE set_adjvel_bcs(rhob1, uxb1, uyb1, uzb1, pp3, &
+     nzmsize, ph1)
+
+  USE decomp_2d
+  USE param
+  USE variables
+  
+  IMPLICIT NONE
+
+  INTEGER :: nzmsize
+  TYPE(DECOMP_INFO) :: ph1
+
+  INTEGER :: i, j, k
+
+  REAL(mytype), DIMENSION(xsize(1), xsize(2), xsize(3)), INTENT(IN) :: rhob1, uxb1, uyb1, uzb1
+  REAL(mytype), DIMENSION(ph1%zst(1):ph1%zen(1), ph1%zst(2):ph1%zen(2), nzmsize) :: pp3
+  
+  !! Walls are impenetrable to velocity adjoint
+  bxx1(:,:) = 0._mytype
+  bxxn(:,:) = 0._mytype
+  byy1(:,:) = 0._mytype
+  byyn(:,:) = 0._mytype
+  bzz1(:,:) = 0._mytype
+  bzzn(:,:) = 0._mytype
+
+ENDSUBROUTINE set_adjvel_bcs
+
 !**********************************************************************
 !
 !

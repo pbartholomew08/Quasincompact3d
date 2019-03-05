@@ -217,14 +217,18 @@ PROGRAM incompact3d
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
       !-----------------------------------------------------------------------------------
 
-      if (nclx.eq.2) then
-        call inflow (ux1,uy1,uz1,rho1,temperature1,massfrac1,phi1) !X PENCILS
-        if ((ilmn.ne.0).and.(itime.eq.ifirst).and.(itr.eq.1)) then
-          call compute_outflux_lmn(temperature1,ta1,di1,&
-               temperature2,ta2,di2,&
-               temperature3,ta3,di3)
-        endif
-        call outflow(ux1,uy1,uz1,rho1,temperature1,massfrac1,phi1) !X PENCILS 
+      if (.not.iadj_mode) then
+         if (nclx.eq.2) then
+            call inflow (ux1,uy1,uz1,rho1,temperature1,massfrac1,phi1) !X PENCILS
+            if ((ilmn.ne.0).and.(itime.eq.ifirst).and.(itr.eq.1)) then
+               call compute_outflux_lmn(temperature1,ta1,di1,&
+                    temperature2,ta2,di2,&
+                    temperature3,ta3,di3)
+            endif
+            call outflow(ux1,uy1,uz1,rho1,temperature1,massfrac1,phi1) !X PENCILS 
+         endif
+      else
+         call set_adjvel_bcs(rhob1, uxb1, uyb1, uzb1, pp3)
       endif
 
       if (ilmn.ne.0) then
