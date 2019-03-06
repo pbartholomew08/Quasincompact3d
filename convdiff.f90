@@ -2421,9 +2421,9 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   nvect3=zsize(1)*zsize(2)*zsize(3)
 
   !WORK X-PENCILS
-  td1(:,:,:) = ux1(:,:,:) * uxb1(:,:,:)
-  te1(:,:,:) = uy1(:,:,:) * uxb1(:,:,:)
-  tf1(:,:,:) = uz1(:,:,:) * uxb1(:,:,:)
+  td1(:,:,:) = rhob1(:,:,:) * ux1(:,:,:) * uxb1(:,:,:)
+  te1(:,:,:) = rhob1(:,:,:) * uy1(:,:,:) * uxb1(:,:,:)
+  tf1(:,:,:) = rhob1(:,:,:) * uz1(:,:,:) * uxb1(:,:,:)
 
   call derx (ta1,td1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
   call derx (tb1,te1,di1,sx,ffx,fsx,fwx,xsize(1),xsize(2),xsize(3),0)
@@ -2433,8 +2433,8 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   call derx (te1,uyb1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
   call derx (tf1,uzb1,di1,sx,ffxp,fsxp,fwxp,xsize(1),xsize(2),xsize(3),1)
 
-  ta1(:,:,:) = ta1(:,:,:) &
-       - (ux1(:,:,:) * td1(:,:,:) + uy1(:,:,:) * te1(:,:,:) + uz1(:,:,:) * tf1(:,:,:))
+  ta1(:,:,:) = ta1(:,:,:) - rhob1(:,:,:) &
+       * (ux1(:,:,:) * td1(:,:,:) + uy1(:,:,:) * te1(:,:,:) + uz1(:,:,:) * tf1(:,:,:))
 
   call transpose_x_to_y(ux1,ux2)
   call transpose_x_to_y(uy1,uy2)
@@ -2442,6 +2442,7 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   call transpose_x_to_y(ta1,ta2)
   call transpose_x_to_y(tb1,tb2)
   call transpose_x_to_y(tc1,tc2)
+  call transpose_x_to_y(rhob1,tf2)
   call transpose_x_to_y(uxb1,tg2)
   call transpose_x_to_y(uyb1,th2)
   call transpose_x_to_y(uzb1,ti2)
@@ -2449,25 +2450,27 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   !WORK Y-PENCILS
 
   !! Compute ddy(u_+ v)
-  td2(:,:,:) = ux2(:,:,:) * th2(:,:,:)
+  td2(:,:,:) = tf2(:,:,:) * ux2(:,:,:) * th2(:,:,:)
   call dery (te2,td2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
   ta2(:,:,:) = ta2(:,:,:) + te2(:,:,:)
   
-  td2(:,:,:) = uy2(:,:,:) * th2(:,:,:)
+  td2(:,:,:) = tf2(:,:,:) * uy2(:,:,:) * th2(:,:,:)
   call dery (te2,td2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
   tb2(:,:,:) = tb2(:,:,:) + te2(:,:,:)
   
-  td2(:,:,:) = uz2(:,:,:) * th2(:,:,:)
+  td2(:,:,:) = tf2(:,:,:) * uz2(:,:,:) * th2(:,:,:)
   call dery (te2,td2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
   tc2(:,:,:) = tc2(:,:,:) + te2(:,:,:)
 
   !! Compute u_+ ddy(u)
   call dery (td2,tg2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1) 
   call dery (te2,th2,di2,sy,ffy,fsy,fwy,ppy,ysize(1),ysize(2),ysize(3),0)
+  tb2(:,:,:) = tb2(:,:,:) - tf2(:,:,:) * (ux2(:,:,:) * td2(:,:,:) + uy2(:,:,:) * te2(:,:,:))
+  te2(:,:,:) = tf2(:,:,:) 
   call dery (tf2,ti2,di2,sy,ffyp,fsyp,fwyp,ppy,ysize(1),ysize(2),ysize(3),1)
 
   tb2(:,:,:) = tb2(:,:,:) &
-       - (ux2(:,:,:) * td2(:,:,:) + uy2(:,:,:) * te2(:,:,:) + uz2(:,:,:) * tf2(:,:,:))
+       - te2(:,:,:) * uz2(:,:,:) * tf2(:,:,:)
 
   call transpose_y_to_z(ux2,ux3)
   call transpose_y_to_z(uy2,uy3)
@@ -2475,6 +2478,7 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   call transpose_y_to_z(ta2,ta3)
   call transpose_y_to_z(tb2,tb3)
   call transpose_y_to_z(tc2,tc3)
+  call transpose_y_to_z(te2,tf3)
   call transpose_y_to_z(tg2,tg3)
   call transpose_y_to_z(th2,th3)
   call transpose_y_to_z(ti2,ti3)
@@ -2482,25 +2486,27 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   !WORK Z-PENCILS
 
   !! Compute ddz(u_+ w)
-  td3(:,:,:) = ux3(:,:,:) * ti3(:,:,:)
+  td3(:,:,:) = tf3(:,:,:) * ux3(:,:,:) * ti3(:,:,:)
   call derz (te3,td3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
   ta3(:,:,:) = ta3(:,:,:) + te3(:,:,:)
   
-  td3(:,:,:) = uy3(:,:,:) * ti3(:,:,:)
+  td3(:,:,:) = tf3(:,:,:) * uy3(:,:,:) * ti3(:,:,:)
   call derz (te3,td3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
   tb3(:,:,:) = tb3(:,:,:) + te3(:,:,:)
   
-  td3(:,:,:) = uz3(:,:,:) * ti3(:,:,:)
+  td3(:,:,:) = tf3(:,:,:) * uz3(:,:,:) * ti3(:,:,:)
   call derz (te3,td3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
   tc3(:,:,:) = tc3(:,:,:) + te3(:,:,:)
 
   !! Compute u_+ ddz(u)
   call derz (td3,tg3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
   call derz (te3,th3,di3,sz,ffzp,fszp,fwzp,zsize(1),zsize(2),zsize(3),1)
+  tc3(:,:,:) = tc3(:,:,:) &
+       - tf3(:,:,:) * (ux3(:,:,:) * td3(:,:,:) + uy3(:,:,:) * te3(:,:,:))
+  te3(:,:,:) = tf3(:,:,:)
   call derz (tf3,ti3,di3,sz,ffz,fsz,fwz,zsize(1),zsize(2),zsize(3),0)
 
-  tc3(:,:,:) = tc3(:,:,:) &
-       - (ux3(:,:,:) * td3(:,:,:) + uy3(:,:,:) * te3(:,:,:) + uz3(:,:,:) * tf3(:,:,:))
+  tc3(:,:,:) = tc3(:,:,:) - te3(:,:,:) * uz3(:,:,:) * tf3(:,:,:)
 
   !ALL THE CONVECTIVE TERMS ARE IN TA3, TB3 and TC3
   !DIV OF u_+ IS IN TH3
@@ -2512,19 +2518,9 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   call derzz (te3,uy3,di3,sz,sfzp,sszp,swzp,zsize(1),zsize(2),zsize(3),1)
   call derzz (tf3,uz3,di3,sz,sfz ,ssz ,swz ,zsize(1),zsize(2),zsize(3),0)
 
-  if (ilmn.ne.0) then
-     tg1(:,:,:) = rhob1(:,:,:)
-     call transpose_x_to_y(rhob1, tg2)
-     call transpose_y_to_z(tg2, tg3)
-  else
-     tg1(:,:,:) = 1._mytype
-     tg2(:,:,:) = 1._mytype
-     tg3(:,:,:) = 1._mytype
-  endif
-
-  ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:) / tg3(:,:,:)
-  tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:) / tg3(:,:,:)
-  tc3(:,:,:) = tc3(:,:,:) + xnu * tf3(:,:,:) / tg3(:,:,:)
+  ta3(:,:,:) = ta3(:,:,:) + xnu * td3(:,:,:)
+  tb3(:,:,:) = tb3(:,:,:) + xnu * te3(:,:,:)
+  tc3(:,:,:) = tc3(:,:,:) + xnu * tf3(:,:,:)
 
   call transpose_z_to_y(ta3,ta2)
   call transpose_z_to_y(tb3,tb2)
@@ -2578,9 +2574,9 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
     call deryy (tf2,uz2,di2,sy,sfyp,ssyp,swyp,ysize(1),ysize(2),ysize(3),1) 
   endif
   
-  ta2(:,:,:) = ta2(:,:,:) + xnu * td2(:,:,:) / tg2(:,:,:)
-  tb2(:,:,:) = tb2(:,:,:) + xnu * te2(:,:,:) / tg2(:,:,:)
-  tc2(:,:,:) = tc2(:,:,:) + xnu * tf2(:,:,:) / tg2(:,:,:)
+  ta2(:,:,:) = ta2(:,:,:) + xnu * td2(:,:,:)
+  tb2(:,:,:) = tb2(:,:,:) + xnu * te2(:,:,:)
+  tc2(:,:,:) = tc2(:,:,:) + xnu * tf2(:,:,:)
 
   !WORK X-PENCILS
   call transpose_y_to_x(ta2,ta1)
@@ -2592,9 +2588,9 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, te
   call derxx (te1,uy1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
   call derxx (tf1,uz1,di1,sx,sfxp,ssxp,swxp,xsize(1),xsize(2),xsize(3),1)
   
-  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:) / tg1(:,:,:)
-  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:) / tg1(:,:,:)
-  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:) / tg1(:,:,:)
+  ta1(:,:,:) = ta1(:,:,:) + xnu * td1(:,:,:)
+  tb1(:,:,:) = tb1(:,:,:) + xnu * te1(:,:,:)
+  tc1(:,:,:) = tc1(:,:,:) + xnu * tf1(:,:,:)
 
   if (ilmn.ne.0) then
      call momentum_adj_gradt(ta1, tb1, tc1, temperature1, temperatureb1, td1, te1, tf1, di1, &
