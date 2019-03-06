@@ -119,14 +119,23 @@ PROGRAM incompact3d
 
         pp3(:,:,:) = 0._mytype !! I don't see that there's any other way to compute this.
 
-        !! Compute rho adjoint from EOS
+        !! Compute gradient of background pressure
         call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
              ta3,tc3,di3,ppb3,nxmsize,nymsize,nzmsize,ph2,ph3)
+
+        !! Compute rho adjoint from EOS
         call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
               temperature1, temperatureb1, &
               ta1, tb1, tc1, td1, di1, &
               ta2, tb2, tc2, te2, tf2, di2, &
               ta3, tb3, tc3, tf3, di3)
+
+        !! Compute Laplacian of background pressure
+        call divergence (px1,py1,pz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+             td2,te2,tf2,di2,ta2,tb2,tc2,&
+             ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3corr,&
+             nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+        
         !! XXX restore pressure gradients
         call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
              ta3,tc3,di3,pp3,nxmsize,nymsize,nzmsize,ph2,ph3)
@@ -316,7 +325,6 @@ PROGRAM incompact3d
                  ta2,tb2,tc2,temperature2,di2,td2,te2,tf2,tg2,th2,&
                  ta3,tb3,temperature3,pp3corr,di3,tc3,td3,te3,tf3,&
                  nxmsize,nymsize,nzmsize,ph2,ph3)
-            print *, MINVAL(tg1), MAXVAL(tg1)
             call intttemperature(temperature1,temperatures1,temperaturess1,tg1)
          endif
       endif
@@ -519,7 +527,11 @@ PROGRAM incompact3d
       !-----------------------------------------------------------------------------------
 
       !X PENCILS
-      call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
+      if (.not.iadj_mode) then
+         call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
+      else
+         call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rhob1)
+      endif
 
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain velocity: ux = u etc.
