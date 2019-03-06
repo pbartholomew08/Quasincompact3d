@@ -240,7 +240,6 @@ endif
 
 if (solve_adjoint.ne.0) then
    print *, "Adjoint solver: Enabled"
-   iadj_solver = .TRUE.
 
    if (iadj_dir.lt.0) then
       print *, "Solving adjoint equations only"
@@ -251,7 +250,6 @@ if (solve_adjoint.ne.0) then
    endif
 else
    print *, "Adjoint solver: Disabled"
-   iadj_solver = .FALSE.
 endif
 
 if (iskew.eq.0) then
@@ -354,6 +352,12 @@ if (nscheme==4) then!AB3
    cdt(1)= ( 5._mytype/12._mytype)*dt
    gdt(1)=adt(1)+bdt(1)+cdt(1)
    gdt(3)=gdt(1)
+endif
+
+if (solve_adjoint.ne.0) then
+   iadj_solver = .TRUE.
+else
+   iadj_solver = .FALSE.
 endif
 
 return  

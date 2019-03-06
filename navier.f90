@@ -1631,25 +1631,43 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
       enddo
     enddo
   else if (itype.eq.6) then
-    t=0._mytype
-    !xv=1._mytype/100._mytype
-    !xxk1=twopi/xlx
-    !xxk2=twopi/yly
-    do k=1,xsize(3)
-      z=float((k+xstart(3)-1-1))*dz
-      do j=1,xsize(2)
-        y=float((j+xstart(2)-1-1))*dy
-        do i=1,xsize(1)
-          x=float(i-1)*dx
-          ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
-          uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
-          uz1(i,j,k)=0._mytype
-          bxx1(j,k)=0._mytype
-          bxy1(j,k)=0._mytype
-          bxz1(j,k)=0._mytype
+     t=0._mytype
+     !xv=1._mytype/100._mytype
+     !xxk1=twopi/xlx
+     !xxk2=twopi/yly
+     do k=1,xsize(3)
+        z=float((k+xstart(3)-1-1))*dz
+        do j=1,xsize(2)
+           y=float((j+xstart(2)-1-1))*dy
+           do i=1,xsize(1)
+              x=float(i-1)*dx
+              ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
+              uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
+              uz1(i,j,k)=0._mytype
+              bxx1(j,k)=0._mytype
+              bxy1(j,k)=0._mytype
+              bxz1(j,k)=0._mytype
+           enddo
         enddo
-      enddo
-    enddo
+     enddo
+
+     if (iadj_solver) then
+        do k = 1, xsize(3)
+           z=float((k+xstart(3)-1-1))*dz
+           do j=1,xsize(2)
+              y=float((j+xstart(2)-1-1))*dy
+              do i=1,xsize(1)
+                 x=float(i-1)*dx
+                 r = SQRT(x**2 + y**2 + z**2)
+
+                 r = 1._mytype - r
+                 rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2
+
+                 temperature1(i, j, k) = 1._mytype / rho1(i, j, k)
+              enddo
+           enddo
+        enddo
+     endif
   else if (itype.eq.7) then
      p_front = (14._mytype / 32._mytype) * xlx
      if (itime.eq.0) then
