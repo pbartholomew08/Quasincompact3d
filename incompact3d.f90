@@ -325,7 +325,7 @@ PROGRAM incompact3d
       if (.not.iadj_mode) then
          call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,ta1,tb1,tc1,td1,rho1)
       else
-         call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,ta1,tb1,tc1,td1,rhob1)
+         call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,-ta1,-tb1,-tc1,td1,rhob1)
       endif
 
       !-----------------------------------------------------------------------------------

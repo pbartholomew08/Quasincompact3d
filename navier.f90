@@ -1744,11 +1744,11 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
      !xxk1=twopi/xlx
      !xxk2=twopi/yly
      do k=1,xsize(3)
-        z=float((k+xstart(3)-1-1))*dz
+        z=float((k+xstart(3)-1-1))*dz - 0.5 * zlz
         do j=1,xsize(2)
-           y=float((j+xstart(2)-1-1))*dy
+           y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
            do i=1,xsize(1)
-              x=float(i-1)*dx
+              x=float(i-1)*dx - 0.5 * xlx
               ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
               uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
               uz1(i,j,k)=0._mytype
@@ -1761,11 +1761,11 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
 
      if (iadj_solver) then
         do k = 1, xsize(3)
-           z=float((k+xstart(3)-1-1))*dz
+           z=float((k+xstart(3)-1-1))*dz - 0.5 * zlz
            do j=1,xsize(2)
-              y=float((j+xstart(2)-1-1))*dy
+              y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
               do i=1,xsize(1)
-                 x=float(i-1)*dx
+                 x=float(i-1)*dx - 0.5 * zlz
                  r = SQRT(x**2 + y**2 + z**2)
 
                  r = 1._mytype - r
