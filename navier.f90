@@ -2155,11 +2155,15 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
        temperatureb1
   REAL(mytype),DIMENSION(ph1%zst(1):ph1%zen(1),ph1%zst(2):ph1%zen(2),nzmsize), INTENT(IN) :: ppb3
 
+  IF (nrank.EQ.0) THEN
+     PRINT *, "Initialising adjoint variables"
+  ENDIF
+
   !! Here the user specifies the derivative of the objective function wrt the background variables
   dJdux1(:,:,:) = 0._mytype
   dJduy1(:,:,:) = 0._mytype
   dJduz1(:,:,:) = 0._mytype
-  dJdT1(:,:,:) = 0._mytype
+  dJdT1(:,:,:) = 2 * temperatureb1(:,:,:)
 
   !! The initial conditions are set by equating the derivatives and the adjoint variables
   ux1(:,:,:) = dJdux1(:,:,:) / rhob1(:,:,:)

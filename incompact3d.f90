@@ -86,6 +86,14 @@ PROGRAM incompact3d
 
   call decomp_info_init(nxm,nym,nzm,phG)
 
+  !div: nx ny nz --> nxm ny nz --> nxm nym nz --> nxm nym nzm
+  call decomp_info_init(nxm, nym, nzm, ph1)
+  call decomp_info_init(nxm, ny, nz, ph4)
+
+  !gradp: nxm nym nzm -> nxm nym nz --> nxm ny nz --> nx ny nz
+  call decomp_info_init(nxm, ny, nz, ph2)  
+  call decomp_info_init(nxm, nym, nz, ph3) 
+
   !if you want to collect 100 snapshots randomly on 50000 time steps
   !call collect_data() !it will generate 100 random time steps
 
@@ -157,14 +165,6 @@ PROGRAM incompact3d
   phimean=0._mytype;phiphimean=0._mytype
 
   t1 = MPI_WTIME()
-
-  !div: nx ny nz --> nxm ny nz --> nxm nym nz --> nxm nym nzm
-  call decomp_info_init(nxm, nym, nzm, ph1)
-  call decomp_info_init(nxm, ny, nz, ph4)
-
-  !gradp: nxm nym nzm -> nxm nym nz --> nxm ny nz --> nx ny nz
-  call decomp_info_init(nxm, ny, nz, ph2)  
-  call decomp_info_init(nxm, nym, nz, ph3) 
 
   itime=0
   call VISU_INSTA(ux1,uy1,uz1,rho1,temperature1,massfrac1,phi1,&
@@ -240,11 +240,13 @@ PROGRAM incompact3d
          call set_massfrac_bcs(massfrac1, ux1, uy1, uz1)
       endif
 
-      !! Ensure rho/temp is up to date
-      if (isolvetemp.eq.0) then
-        call calctemp_eos(temperature1, rho1, massfrac1, pressure0, xsize)
-      else
-        call calcrho_eos(rho1, temperature1, massfrac1, pressure0, xsize)
+      if (.not.iadj_mode) then
+         !! Ensure rho/temp is up to date
+         if (isolvetemp.eq.0) then
+            call calctemp_eos(temperature1, rho1, massfrac1, pressure0, xsize)
+         else
+            call calcrho_eos(rho1, temperature1, massfrac1, pressure0, xsize)
+         endif
       endif
 
       !-----------------------------------------------------------------------------------
@@ -252,8 +254,8 @@ PROGRAM incompact3d
       ! XXX Temperature is up-to-date in X, Y and Z.
       !-----------------------------------------------------------------------------------
       call calcvisc(mu1, mu2, mu3, rho1, temperature1, massfrac1)
-      if (iscalar.eq.0) then
-        call calcgamma(gamma1, temperature1)
+      if (iscalar.ne.0) then
+         call calcgamma(gamma1, temperature1)
       endif
 
       !X-->Y-->Z-->Y-->X
@@ -263,11 +265,11 @@ PROGRAM incompact3d
               ux3,uy3,uz3,rho3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
          call apply_grav(ta1, tb1, tc1, rho1)
       else
-         call convdiff_adj(ux1,uy1,uz1,temperature1,mu1,&
+         call convdiff_adj(ux1,uy1,uz1,temperature1,&
               uxb1,uyb1,uzb1,rhob1,temperatureb1,&
-              ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
-              ux2,uy2,uz2,mu2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
-              ux3,uy3,uz3,mu3,divu3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
+              ta1,tb1,tc1,td1,te1,tf1,tg1,di1,&
+              ux2,uy2,uz2,ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
+              ux3,uy3,uz3,ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3)
       endif
 
       ! Transport massfrac
@@ -314,50 +316,57 @@ PROGRAM incompact3d
                  ta2,tb2,tc2,temperature2,di2,td2,te2,tf2,tg2,th2,&
                  ta3,tb3,temperature3,pp3corr,di3,tc3,td3,te3,tf3,&
                  nxmsize,nymsize,nzmsize,ph2,ph3)
+            print *, MINVAL(tg1), MAXVAL(tg1)
             call intttemperature(temperature1,temperatures1,temperaturess1,tg1)
          endif
       endif
 
       !X PENCILS
-      call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,ta1,tb1,tc1,td1,rho1)
+      if (.not.iadj_mode) then
+         call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,ta1,tb1,tc1,td1,rho1)
+      else
+         call intt (ux1,uy1,uz1,gx1,gy1,gz1,hx1,hy1,hz1,ta1,tb1,tc1,td1,rhob1)
+      endif
 
       !-----------------------------------------------------------------------------------
       ! XXX ux,uy,uz now contain momentum: ux = (rho u) etc.
       !-----------------------------------------------------------------------------------
 
       if (ilmn.ne.0) then
-        !! Update density
-        if (isolvetemp.eq.0) then
-          call inttdensity(rho1,rhos1,rhoss1,rhos01,rhos001,tg1,drhodt1)
+         if (.not.iadj_mode) then
+            !! Update density
+            if (isolvetemp.eq.0) then
+               call inttdensity(rho1,rhos1,rhoss1,rhos01,rhos001,tg1,drhodt1)
+               
+               ! Update temperature using EOS
+               call calctemp_eos(temperature1, rho1, massfrac1, pressure0, xsize)
+               call test_temperature_min_max(temperature1)
+            else
+               ! Update density using EOS
+               call calcrho_eos(rho1, temperature1, massfrac1, pressure0, xsize)
+               call test_density_min_max(rho1)
+            endif
+         endif
 
-          ! Update temperature using EOS
-          call calctemp_eos(temperature1, rho1, massfrac1, pressure0, xsize)
-          call test_temperature_min_max(temperature1)
-        else
-          ! Update density using EOS
-          call calcrho_eos(rho1, temperature1, massfrac1, pressure0, xsize)
-          call test_density_min_max(rho1)
-        endif
+         if (ivarcoeff.eq.0) then
+            if (.not.iadj_mode) then
+               !! Predict drhodt at new timestep
+               call extrapol_rhotrans(rho1,rhos1,rhoss1,rhos01,rhos001,drhodt1)
+               
+               ! !! Apply Birman correction
+               ! call birman_rhotrans_corr(rho1, drhodt1, ta1, tb1, di1, rho2, &
+               !      ta2, tb2, di2, &
+               !      rho3, ta3, di3)
 
-        if (ivarcoeff.eq.0) then
-           if (.not.iadj_mode) then
-              !! Predict drhodt at new timestep
-              call extrapol_rhotrans(rho1,rhos1,rhoss1,rhos01,rhos001,drhodt1)
-           
-              ! !! Apply Birman correction
-              ! call birman_rhotrans_corr(rho1, drhodt1, ta1, tb1, di1, rho2, &
-              !      ta2, tb2, di2, &
-              !      rho3, ta3, di3)
-
-              call rhotrans_skewsymm(drhodt1, rho1)
-           else
-              call extrapol_ugradrho_adj(rhob1, ux1, uy1, uz1, drhodt1, ta1, tb1, tc1, di1, &
-                   ta2, tb2, tc2, di2, &
-                   ta3, tb3, di3)
-           endif
-        endif
+               call rhotrans_skewsymm(drhodt1, rho1)
+            else
+               call extrapol_ugradrho_adj(rhob1, ux1, uy1, uz1, drhodt1, ta1, tb1, tc1, di1, &
+                    ta2, tb2, tc2, di2, &
+                    ta3, tb3, di3)
+            endif
+         endif
       endif
-
+      
       ! Predict new pressure field
       if ((ilmn.ne.0).and.(ivarcoeff.ne.0)) then
         if ((itime - 1).ne.0) then

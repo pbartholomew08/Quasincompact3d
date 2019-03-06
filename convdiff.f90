@@ -2374,10 +2374,10 @@ SUBROUTINE fringe_bcx(ta1, tb1, tc1, ux1, uy1, uz1, rho1) !, bc1, bcn)
   
 ENDSUBROUTINE fringe_bcx
 
-subroutine convdiff_adj(ux1, uy1, uz1, temperature1, mu1, uxb1, uyb1, uzb1, rhob1, temperatureb1, &
-     ta1, tb1, tc1, td1, te1, tf1, tg1, th1, ti1, di1, &
-     ux2, uy2, uz2, mu2, ta2, tb2, tc2, td2, te2, tf2, tg2, th2, ti2, tj2, di2, &
-     ux3, uy3, uz3, mu3, divu3, ta3, tb3, tc3, td3, te3, tf3, tg3, th3, ti3, di3)
+subroutine convdiff_adj(ux1, uy1, uz1, temperature1, uxb1, uyb1, uzb1, rhob1, temperatureb1, &
+     ta1, tb1, tc1, td1, te1, tf1, tg1, di1, &
+     ux2, uy2, uz2, ta2, tb2, tc2, td2, te2, tf2, tg2, th2, ti2, tj2, di2, &
+     ux3, uy3, uz3, ta3, tb3, tc3, td3, te3, tf3, tg3, th3, ti3, di3)
 
   USE param
   USE variables
@@ -2389,23 +2389,11 @@ subroutine convdiff_adj(ux1, uy1, uz1, temperature1, mu1, uxb1, uyb1, uzb1, rhob
 
   real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: ux1, uy1, uz1, temperature1, &
        uxb1, uyb1, uzb1, rhob1, temperatureb1
-  real(mytype), dimension(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, tc1, td1, te1, tf1, tg1, th1, ti1, di1
+  real(mytype), dimension(xsize(1), xsize(2), xsize(3)) :: ta1, tb1, tc1, td1, te1, tf1, tg1, di1
   real(mytype), dimension(ysize(1), ysize(2), ysize(3)) :: ux2, uy2, uz2 
   real(mytype), dimension(ysize(1), ysize(2), ysize(3)) :: ta2, tb2, tc2, td2, te2, tf2, tg2, th2, ti2, tj2, di2
   real(mytype), dimension(zsize(1), zsize(2), zsize(3)) :: ux3, uy3, uz3
   real(mytype), dimension(zsize(1), zsize(2), zsize(3)) :: ta3, tb3, tc3, td3, te3, tf3, tg3, th3, ti3, di3
-
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: divu1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: divu2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: divu3
-
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: clx1, cly1, clz1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: clx2, cly2, clz2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: clx3, cly3, clz3
-  
-  real(mytype),dimension(xsize(1),xsize(2),xsize(3)) :: mu1
-  real(mytype),dimension(ysize(1),ysize(2),ysize(3)) :: mu2
-  real(mytype),dimension(zsize(1),zsize(2),zsize(3)) :: mu3
 
   integer :: ijk,nvect1,nvect2,nvect3,i,j,k
   real(mytype) :: x,y,z

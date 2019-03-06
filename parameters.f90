@@ -246,9 +246,6 @@ if (solve_adjoint.ne.0) then
    else if (iadj_dir.gt.0) then
       print *, "Solving forward equations only"
 
-      if (nclx.ne.0) nclx = 2
-      if (ncly.ne.0) ncly = 2
-      if (nclz.ne.0) nclz = 2
       print *, "N.B. Forced non-periodic boundary conditions to type 2 (Dirichlet)."
    else
       print *, "Solving forward then adjoint equations"
@@ -363,6 +360,12 @@ if (solve_adjoint.ne.0) then
    iadj_solver = .TRUE.
 else
    iadj_solver = .FALSE.
+endif
+
+if (iadj_dir.gt.0) then
+   iadj_mode = .FALSE.
+else
+   iadj_mode = .TRUE.
 endif
 
 return  
