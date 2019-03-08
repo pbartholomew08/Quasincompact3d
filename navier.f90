@@ -459,10 +459,12 @@ SUBROUTINE intttemperature(temperature1, temperatures1, temperaturess1, tg1)
 
   !! Limiting
   CALL test_temperature_min_max(temperature1)
-  DO ijk = 1, nxyz
-    temperature1(ijk, 1, 1) = MAX(temperature1(ijk, 1, 1), 1._mytype)
-    temperature1(ijk, 1, 1) = MIN(temperature1(ijk, 1, 1), 1._mytype)
-  ENDDO
+  IF (.NOT.iadj_mode) THEN
+     DO ijk = 1, nxyz
+        temperature1(ijk, 1, 1) = MAX(temperature1(ijk, 1, 1), 1._mytype)
+        temperature1(ijk, 1, 1) = MIN(temperature1(ijk, 1, 1), 1._mytype)
+     ENDDO
+  ENDIF
   
 ENDSUBROUTINE intttemperature
 
@@ -1533,6 +1535,7 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
   real(mytype) :: p_front
   real(mytype) :: T1, T2, cp, M, rspech
   real(mytype) :: rhomax, rhomin
+  real(mytype) :: perturb
 
   bxx1=0._mytype;bxy1=0._mytype;bxz1=0._mytype
   byx1=0._mytype;byy1=0._mytype;byz1=0._mytype
@@ -1743,15 +1746,27 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
      !xv=1._mytype/100._mytype
      !xxk1=twopi/xlx
      !xxk2=twopi/yly
+
+     !! Set to 1 to perturb values
+     ! perturb = 1._mytype * dx
+     perturb = 0._mytype
+
+     perturb = perturb * SQRT(EPSILON(1._mytype))
+     if (nrank.eq.0) then
+        print *, "====================="
+        print *, "Perturbation: ", perturb
+        print *, "====================="
+     endif
+     
      do k=1,xsize(3)
         z=float((k+xstart(3)-1-1))*dz - 0.5 * zlz
         do j=1,xsize(2)
            y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
            do i=1,xsize(1)
               x=float(i-1)*dx - 0.5 * xlx
-              ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
-              uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
-              uz1(i,j,k)=0._mytype
+              ux1(i,j,k)=+sin(x)*cos(y)*cos(z) + perturb
+              uy1(i,j,k)=-cos(x)*sin(y)*cos(z) + perturb
+              uz1(i,j,k)=0._mytype + perturb
               bxx1(j,k)=0._mytype
               bxy1(j,k)=0._mytype
               bxz1(j,k)=0._mytype
@@ -1769,9 +1784,9 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
                  r = SQRT(x**2 + y**2 + z**2)
 
                  r = 1._mytype - r
-                 rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2
+                 rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2 + perturb
 
-                 temperature1(i, j, k) = 1._mytype / rho1(i, j, k)
+                 temperature1(i, j, k) = 1._mytype / rho1(i, j, k) + perturb
               enddo
            enddo
         enddo
@@ -2166,10 +2181,10 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
   dJdT1(:,:,:) = 2 * temperatureb1(:,:,:)
 
   !! The initial conditions are set by equating the derivatives and the adjoint variables
-  ux1(:,:,:) = dJdux1(:,:,:) / rhob1(:,:,:)
-  uy1(:,:,:) = dJduy1(:,:,:) / rhob1(:,:,:)
-  uz1(:,:,:) = dJduz1(:,:,:) / rhob1(:,:,:)
-  temperature1(:,:,:) = dJdT1(:,:,:) / rhob1(:,:,:)
+  ux1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdux1(:,:,:) / rhob1(:,:,:)
+  uy1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduy1(:,:,:) / rhob1(:,:,:)
+  uz1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduz1(:,:,:) / rhob1(:,:,:)
+  temperature1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdT1(:,:,:) !/ rhob1(:,:,:)
 
   !! Finally setup the old arrays
   gx1(:,:,:) = ux1(:,:,:)

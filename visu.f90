@@ -212,21 +212,36 @@ call decomp_2d_write_one(1,uvisu,filename,2)
 uvisu=0._mytype
 call fine_to_coarseV(1,ux1,uvisu)
 993 format('ux',I3.3)
-      write(filename, 993) itime/imodulo
+994 format('ux_adj',I3.3)
+if(.not.iadj_mode) then
+   write(filename, 993) itime/imodulo
+else
+   write(filename, 994) itime/imodulo
+endif
 call decomp_2d_write_one(1,uvisu,filename,2)
 !call decomp_2d_write_one(nx_global,ny_global,nz_global,&
 !           1,ux1,filename)
 uvisu=0._mytype
 call fine_to_coarseV(1,uy1,uvisu)
-994 format('uy',I3.3)
-      write(filename, 994) itime/imodulo
+995 format('uy',I3.3)
+996 format('uy_adj',I3.3)
+if (.not.iadj_mode) then
+   write(filename, 995) itime/imodulo
+else
+   write(filename, 996) itime/imodulo
+endif
 call decomp_2d_write_one(1,uvisu,filename,2)
 !call decomp_2d_write_one(nx_global,ny_global,nz_global,&
 !           1,uy1,filename)
 uvisu=0._mytype
 call fine_to_coarseV(1,uz1,uvisu)
-995 format('uz',I3.3)
-      write(filename, 995) itime/imodulo
+997 format('uz',I3.3)
+998 format('uz_adj',I3.3)
+if(.not.iadj_mode) then
+   write(filename, 997) itime/imodulo
+else
+   write(filename, 998) itime/imodulo
+endif
 call decomp_2d_write_one(1,uvisu,filename,2)
 !call decomp_2d_write_one(nx_global,ny_global,nz_global,&
 !           1,uz1,filename)
@@ -236,8 +251,13 @@ call decomp_2d_write_one(1,uvisu,filename,2)
 ! DENSITY
 uvisu = 0._mytype
 call fine_to_coarseV(1, rho1, uvisu)
-996 format("rho", I3.3)
-write(filename, 996) itime / imodulo
+999 format("rho", I3.3)
+1000 format("rho_adj", I3.3)
+if (.not.iadj_mode) then
+   write(filename, 999) itime / imodulo
+else
+   write(filename, 1000) itime / imodulo
+endif
 call decomp_2d_write_one(1, uvisu, filename, 2)
 !############################################################################
 
@@ -245,8 +265,13 @@ call decomp_2d_write_one(1, uvisu, filename, 2)
 ! TEMPERATURE
 uvisu = 0._mytype
 call fine_to_coarseV(1, temperature1, uvisu)
-997 format("temperature", I3.3)
-write(filename, 997) itime / imodulo
+1001 format("temperature", I3.3)
+1002 format("temperature_adj", I3.3)
+if (.not.iadj_mode) then
+   write(filename, 1001) itime / imodulo
+else
+   write(filename, 1002) itime / imodulo
+endif
 call decomp_2d_write_one(1, uvisu, filename, 2)
 !############################################################################
 
@@ -254,8 +279,8 @@ call decomp_2d_write_one(1, uvisu, filename, 2)
 ! MASSFRACTION
 uvisu = 0._mytype
 call fine_to_coarseV(1, massfrac1, uvisu)
-998 format("massfrac", I3.3)
-write(filename, 998) itime / imodulo
+1003 format("massfrac", I3.3)
+write(filename, 1003) itime / imodulo
 call decomp_2d_write_one(1, uvisu, filename, 2)
 !############################################################################
 
@@ -264,9 +289,9 @@ call decomp_2d_write_one(1, uvisu, filename, 2)
 if (iscalar==1) then
 uvisu=0.
 call fine_to_coarseV(1,phi1,uvisu)
-999 format('phi',I3.3)
-   write(filename, 999) itime/imodulo
-   call decomp_2d_write_one(1,uvisu,filename,2)
+1004 format('phi',I3.3)
+write(filename, 1004) itime/imodulo
+call decomp_2d_write_one(1,uvisu,filename,2)
 !   call decomp_2d_write_one(nx_global,ny_global,nz_global,&
 !        1,phi1,filename)
 endif

@@ -2378,3 +2378,33 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
 
   return
 end subroutine checkpoint
+
+subroutine eval_adjfunctional(rho1,ux1,uy1,uz1,temperature1,pp3,nzmsize,phG)
+
+  USE MPI
+  USE variables
+  USE param
+  USE decomp_2d
+  
+  implicit none
+
+  integer, intent(in) :: nzmsize
+  TYPE(DECOMP_INFO) :: phG
+  real(mytype), dimension(xsize(1), xsize(2), xsize(3)), intent(in) :: rho1, ux1, uy1, uz1, &
+       temperature1
+  real(mytype), dimension(phG%zst(1):phG%zen(1),phG%zst(2):phG%zen(2),phG%zst(3):phG%zen(3)), intent(in) :: pp3
+
+  integer :: ierr
+  real(mytype) :: Jloc, Jglob
+
+  !! Simple functional - compute temperature norm at t=T
+  if (itime.eq.ilast) then
+     Jloc = sum(temperature1**2)
+     call MPI_ALLREDUCE(Jloc,Jglob,1,real_type,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+     if (nrank.eq.0) then
+        print *, "J = ", Jglob
+     endif
+  endif
+  
+end subroutine eval_adjfunctional

@@ -130,11 +130,12 @@ PROGRAM incompact3d
               ta2, tb2, tc2, te2, tf2, di2, &
               ta3, tb3, tc3, tf3, di3)
 
-        !! Compute Laplacian of background pressure
-        call divergence (px1,py1,pz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
-             td2,te2,tf2,di2,ta2,tb2,tc2,&
-             ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3corr,&
-             nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+        !! Compute Laplacian of adjoint pressure
+        ! call divergence (px1,py1,pz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
+        !      td2,te2,tf2,di2,ta2,tb2,tc2,&
+        !      ta3,tb3,tc3,di3,td3,te3,tf3,divu3,pp3corr,&
+        !      nxmsize,nymsize,nzmsize,ph1,ph3,ph4,1,.FALSE.)
+        pp3corr(:,:,:) = 0._mytype ! If we set it to zero initially, the Laplacian is trivial
         
         !! XXX restore pressure gradients
         call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
@@ -613,6 +614,11 @@ PROGRAM incompact3d
     !         rho3, ux3, uy3, uz3, ta3, tb3, tc3, di3)
     !    CALL calc_sedimentation(rho1, ta1, rho2, ta2, rho3, ta3)
     ! ENDIF
+
+    if (iadj_solver.and.(.not.iadj_mode)) then
+       !! Solving in forward mode: evaluate the functional
+       call eval_adjfunctional(rho1,ux1,uy1,uz1,temperature1,pp3)
+    endif
   enddo
 
   t2=MPI_WTIME()-t1
