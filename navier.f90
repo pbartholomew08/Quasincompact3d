@@ -1784,10 +1784,11 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
            do j=1,xsize(2)
               y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
               do i=1,xsize(1)
-                 x=float(i-1)*dx - 0.5 * zlz
+                 x=float(i-1)*dx - 0.5 * xlx
                  r = SQRT(x**2 + y**2 + z**2)
 
                  r = 1._mytype - r
+
                  ! rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2 + perturb
                  rho1(i,j,k) = dens1
 
