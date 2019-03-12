@@ -2187,15 +2187,21 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
   dJdT1(:,:,:) = 0._mytype
 
   !! The initial conditions are set by equating the derivatives and the adjoint variables
-  ux1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdux1(:,:,:) / rhob1(:,:,:)
-  uy1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduy1(:,:,:) / rhob1(:,:,:)
-  uz1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduz1(:,:,:) / rhob1(:,:,:)
+  ux1(:,:,:) = dJdux1(:,:,:) / rhob1(:,:,:)
+  uy1(:,:,:) = dJduy1(:,:,:) / rhob1(:,:,:)
+  uz1(:,:,:) = dJduz1(:,:,:) / rhob1(:,:,:)
 
   if (ilmn.ne.0) then
      temperature1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdT1(:,:,:) !/ rhob1(:,:,:)
   else
      temperature1(:,:,:) = 1._mytype
   endif
+
+  ! !! Scale by simulated time period?
+  ! ux1(:,:,:) = (ilast - (ifirst - 1)) * dt * ux1(:,:,:)
+  ! uy1(:,:,:) = (ilast - (ifirst - 1)) * dt * uy1(:,:,:)
+  ! uz1(:,:,:) = (ilast - (ifirst - 1)) * dt * uz1(:,:,:)
+  ! temperature1(:,:,:) = (ilast - (ifirst - 1)) * dt * temperature1(:,:,:)
 
   !! Finally setup the old arrays
   gx1(:,:,:) = ux1(:,:,:)
