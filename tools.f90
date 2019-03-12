@@ -2296,7 +2296,7 @@ ENDSUBROUTINE calc_sedimentation
 !!     AUTHOR: Ubaid Ali Qadri
 !!   MODIFIED: Paul Bartholomew
 !!*************************************************************************************************
-subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
+subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG,tstamp)
 
   USE decomp_2d
   USE decomp_2d_io
@@ -2307,6 +2307,8 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
   implicit none
 
   TYPE(DECOMP_INFO) :: phG
+
+  integer, intent(in) :: tstamp
 
   integer :: i,j,k,iload,nzmsize,fh,ierror,is,code
   real(mytype), dimension(xsize(1),xsize(2),xsize(3)) :: ux,uy,uz,rho,temperature
@@ -2322,10 +2324,10 @@ subroutine checkpoint(ux,uy,uz,rho,temperature,pp3,iload,phG)
 1010 format ("checkpoint", I10.10)
   if (iload.eq.0) then
      !! We're in forward mode, writing out checkpoints
-     write(filename, 1010) itime - 1
+     write(filename, 1010) tstamp - 1
   else
      !! We're in reverse mode, reading checkpoints (backwards in time)
-     write(filename, 1010) (ilast - 1) - (itime - 1)
+     write(filename, 1010) ilast - (tstamp - 1)
   endif
   
   if (nrank.eq.0) then

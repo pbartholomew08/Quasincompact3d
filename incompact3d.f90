@@ -108,7 +108,7 @@ PROGRAM incompact3d
              pressure0)
      else
         itime = 1
-        call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG)
+        call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime)
 
         call init_adj(ux1, uy1, uz1, temperature1, &
              gx1, gy1, gz1, temperatures1, &
@@ -213,11 +213,11 @@ PROGRAM incompact3d
           if (itime.gt.ifirst) then
              !! READ background flow
              !! XXX we already read first checkpoint at initialisation
-             call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG)
+             call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime)
           endif
        else
           !! Forward mode: write out solution checkpoint
-          call checkpoint(ux1,uy1,uz1,rho1,temperature1,pp3,0,phG)
+          call checkpoint(ux1,uy1,uz1,rho1,temperature1,pp3,0,phG,itime)
        endif
     endif
     
@@ -369,9 +369,15 @@ PROGRAM incompact3d
 
                call rhotrans_skewsymm(drhodt1, rho1)
             else
+               !! We need the new rho
+               call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime + 1)
+
                call extrapol_ugradrho_adj(rhob1, ux1, uy1, uz1, drhodt1, ta1, tb1, tc1, di1, &
                     ta2, tb2, tc2, di2, &
                     ta3, tb3, di3)
+
+               !! Restore old rho
+               call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime)
             endif
          endif
       endif
@@ -531,7 +537,13 @@ PROGRAM incompact3d
       if (.not.iadj_mode) then
          call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rho1)
       else
+         !! We need the new rho
+         call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime + 1)
+
          call corgp(ux1,ux2,uy1,uz1,px1,py1,pz1,rhob1)
+
+         !! Replace the old rho
+         call checkpoint(uxb1,uyb1,uzb1,rhob1,temperatureb1,ppb3,1,phG,itime)
       endif
 
       !-----------------------------------------------------------------------------------
@@ -620,6 +632,10 @@ PROGRAM incompact3d
        call eval_adjfunctional(rho1,ux1,uy1,uz1,temperature1,pp3)
     endif
   enddo
+
+  if (iadj_solver.and.(.not.iadj_mode)) then
+     call checkpoint(ux1,uy1,uz1,rho1,temperature1,pp3,0,phG,itime)
+  endif
 
   t2=MPI_WTIME()-t1
   call MPI_ALLREDUCE(t2,t1,1,MPI_REAL8,MPI_SUM, &
