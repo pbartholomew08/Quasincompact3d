@@ -118,8 +118,9 @@ PROGRAM incompact3d
              nzmsize, ph1)
 
         pp3(:,:,:) = 0._mytype !! I don't see that there's any other way to compute this.
+        pp3corr(:,:,:) = 0._mytype ! If we set p_+ to zero initially, the Laplacian is trivially zero
 
-        !! Compute gradient of background pressure
+        !! Compute gradient of background pressure for adjoint EOS
         call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
              ta3,tc3,di3,ppb3,nxmsize,nymsize,nzmsize,ph2,ph3)
 
@@ -185,8 +186,8 @@ PROGRAM incompact3d
        ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
        ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&
        ta3,tb3,tc3,td3,te3,tf3,tg3,th3,ti3,di3,phG,uvisu)
-  ! call VISU_PRE (pp3,ta1,tb1,di1,ta2,tb2,di2,&
-  !      ta3,di3,nxmsize,nymsize,nzmsize,phG,ph2,ph3,uvisu)
+  call VISU_PRE (pp3,ta1,tb1,di1,ta2,tb2,di2,&
+       ta3,di3,nxmsize,nymsize,nzmsize,phG,ph2,ph3,uvisu)
 
   ! call VISU_INSTB(ux1,uy1,uz1,phi1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1,&
   !      ta2,tb2,tc2,td2,te2,tf2,tg2,th2,ti2,tj2,di2,&

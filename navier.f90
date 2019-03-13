@@ -1763,6 +1763,7 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
            y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
            do i=1,xsize(1)
               x=float(i-1)*dx - 0.5 * xlx
+
               ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
               uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
               uz1(i,j,k)=0._mytype

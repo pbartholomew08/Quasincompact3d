@@ -1052,7 +1052,7 @@ SUBROUTINE convdiff_temperature_adj(uxb1, uyb1, uzb1, rho1, rhob1, temperature1,
   call transpose_y_to_x(ta2, tb1)
 
   !! Add the adjoint pressure Laplacian term
-  tb1(:,:,:) = tb1(:,:,:) + ((xnu / dt) * invpr) * ta1(:,:,:) !! XXX Assuming press0 = 1
+  tb1(:,:,:) = tb1(:,:,:) + ((xnu * invpr) / dt) * ta1(:,:,:) !! XXX Assuming press0 = 1
   
   call derx (ta1, temperature1, di1, sx, ffxp, fsxp, fwxp, xsize(1), xsize(2), xsize(3), 1)
   ta1(:,:,:) = uxb1(:,:,:) * ta1(:,:,:) + tb1(:,:,:)
