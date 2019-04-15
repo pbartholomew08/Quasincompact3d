@@ -2184,7 +2184,12 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
   ux1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdux1(:,:,:) / rhob1(:,:,:)
   uy1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduy1(:,:,:) / rhob1(:,:,:)
   uz1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJduz1(:,:,:) / rhob1(:,:,:)
-  temperature1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdT1(:,:,:) !/ rhob1(:,:,:)
+
+  if (ilmn.ne.0) then
+     temperature1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdT1(:,:,:) !/ rhob1(:,:,:)
+  else
+     temperature1(:,:,:) = 1._mytype
+  endif
 
   !! Finally setup the old arrays
   gx1(:,:,:) = ux1(:,:,:)

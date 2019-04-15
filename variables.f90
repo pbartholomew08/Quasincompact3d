@@ -201,13 +201,8 @@ contains
 #else
        allocate (uzb1(1,1,1))
 #endif
-       if (ilmn.ne.0) then
-          call alloc_x(rhob1, opt_global=.true.)
-          call alloc_x(temperatureb1, opt_global=.true.)
-       else
-          allocate (rhob1(1,1,1))
-          allocate (temperatureb1(1,1,1))
-       endif
+       call alloc_x(rhob1, opt_global=.true.)
+       call alloc_x(temperatureb1, opt_global=.true.)
     else
        allocate (uxb1(1,1,1))
        allocate (uyb1(1,1,1))

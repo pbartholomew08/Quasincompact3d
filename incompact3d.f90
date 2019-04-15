@@ -124,12 +124,16 @@ PROGRAM incompact3d
              ta3,tc3,di3,ppb3,nxmsize,nymsize,nzmsize,ph2,ph3)
 
         !! Compute rho adjoint from EOS
-        call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
-              temperature1, temperatureb1, &
-              ta1, tb1, tc1, td1, di1, &
-              ta2, tb2, tc2, te2, tf2, di2, &
-              ta3, tb3, tc3, tf3, di3)
-
+        if (ilmn.ne.0) then
+           call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
+                temperature1, temperatureb1, &
+                ta1, tb1, tc1, td1, di1, &
+                ta2, tb2, tc2, te2, tf2, di2, &
+                ta3, tb3, tc3, tf3, di3)
+        else
+           rho1(:,:,:) = 1._mytype
+        endif
+           
         !! Compute Laplacian of adjoint pressure
         ! call divergence (px1,py1,pz1,ep1,ta1,tb1,tc1,di1,td1,te1,tf1,drhodt1,&
         !      td2,te2,tf2,di2,ta2,tb2,tc2,&
@@ -557,12 +561,14 @@ PROGRAM incompact3d
          !! XXX Must put background pressure gradients into px1, py1, pz1
          call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
               ta3,tc3,di3,ppb3,nxmsize,nymsize,nzmsize,ph2,ph3)
-         
-         call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
-              temperature1, temperatureb1, &
-              ta1, tb1, tc1, td1, di1, &
-              ta2, tb2, tc2, te2, tf2, di2, &
-              ta3, tb3, tc3, tf3, di3)
+
+         if (ilmn.ne.0) then
+            call calcrho_eos_adj(rho1, rhob1, ux1, uy1, uz1, uxb1, uyb1, uzb1, px1, py1, pz1, &
+                 temperature1, temperatureb1, &
+                 ta1, tb1, tc1, td1, di1, &
+                 ta2, tb2, tc2, te2, tf2, di2, &
+                 ta3, tb3, tc3, tf3, di3)
+         endif
          
          !! XXX restore pressure gradients
          call gradp(px1,py1,pz1,di1,td2,tf2,ta2,tb2,tc2,di2,&
