@@ -2401,7 +2401,7 @@ subroutine eval_adjfunctional(rho1,ux1,uy1,uz1,temperature1,pp3,nzmsize,phG)
 
   !! Simple functional - compute temperature norm at t=T
   if (itime.eq.ilast) then
-     Jloc = sum(temperature1**2)
+     Jloc = sum(ux1**2)
      call MPI_ALLREDUCE(Jloc,Jglob,1,real_type,MPI_SUM,MPI_COMM_WORLD,ierr)
 
      if (nrank.eq.0) then

@@ -1751,7 +1751,6 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
      ! perturb = 1._mytype * dx
      perturb = 0._mytype
 
-     perturb = perturb * SQRT(EPSILON(1._mytype))
      if (nrank.eq.0) then
         print *, "====================="
         print *, "Perturbation: ", perturb
@@ -1764,9 +1763,14 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
            y=float((j+xstart(2)-1-1))*dy - 0.5 * yly
            do i=1,xsize(1)
               x=float(i-1)*dx - 0.5 * xlx
-              ux1(i,j,k)=+sin(x)*cos(y)*cos(z) + perturb
-              uy1(i,j,k)=-cos(x)*sin(y)*cos(z) + perturb
-              uz1(i,j,k)=0._mytype + perturb
+              ux1(i,j,k)=+sin(x)*cos(y)*cos(z)
+              uy1(i,j,k)=-cos(x)*sin(y)*cos(z)
+              uz1(i,j,k)=0._mytype
+
+              !! Perturb the x-velocity using a Gaussian
+              !! \mu = 0, \sigma^2 = 0.2
+              ux1(i, j, k) = ux1(i, j, k) + perturb * exp(-((x - 0.)**2) / 0.4) / sqrt(pi * 0.4)
+              
               bxx1(j,k)=0._mytype
               bxy1(j,k)=0._mytype
               bxz1(j,k)=0._mytype
@@ -1784,9 +1788,10 @@ subroutine ecoule(ux1,uy1,uz1,rho1,temperature1,massfrac1)
                  r = SQRT(x**2 + y**2 + z**2)
 
                  r = 1._mytype - r
-                 rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2 + perturb
+                 ! rho1(i,j,k) = 0.5 * (dens1 - dens2) * (1 - tanh(r)) + dens2 + perturb
+                 rho1(i,j,k) = dens1
 
-                 temperature1(i, j, k) = 1._mytype / rho1(i, j, k) + perturb
+                 temperature1(i, j, k) = 1._mytype / rho1(i, j, k)
               enddo
            enddo
         enddo
@@ -2175,10 +2180,10 @@ subroutine init_adj(ux1, uy1, uz1, temperature1, &
   ENDIF
 
   !! Here the user specifies the derivative of the objective function wrt the background variables
-  dJdux1(:,:,:) = 0._mytype
+  dJdux1(:,:,:) = 2._mytype * uxb1(:,:,:)
   dJduy1(:,:,:) = 0._mytype
   dJduz1(:,:,:) = 0._mytype
-  dJdT1(:,:,:) = 2 * temperatureb1(:,:,:)
+  dJdT1(:,:,:) = 0._mytype
 
   !! The initial conditions are set by equating the derivatives and the adjoint variables
   ux1(:,:,:) = (ilast - (ifirst - 1)) * dt * dJdux1(:,:,:) / rhob1(:,:,:)
