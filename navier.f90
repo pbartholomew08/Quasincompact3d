@@ -576,67 +576,82 @@ subroutine inflow (ux, uy, uz, rho, temperature, massfrac, phi)
      s = 1._mytype
   endif
 
-  if (iin.eq.1) then  
-    do k = 1, xsize(3)
-      z = (k + xstart(3) - 2) * dz - zlz / 2._mytype
-      do j = 1, xsize(2)
-        y = (j + xstart(2) - 2) * dy - yly / 2._mytype
-        r1 = SQRT(y**2 + z**2)
+  if (iin.eq.1) then
+     if (itype.eq.7) then
+        do k = 1, xsize(3)
+           z = (k + xstart(3) - 2) * dz - zlz / 2._mytype
+           if (abs(z).lt.0.5_mytype) then
+              do j = 1, xsize(2)
+                 rho(1, j, k) = dens1
+              enddo
+           else
+              do j = 1, xsize(2)
+                 rho(1, j, k) = rho(2, j, k)
+              enddo
+           endif
+        enddo
+     else
+        do k = 1, xsize(3)
+           z = (k + xstart(3) - 2) * dz - zlz / 2._mytype
+           do j = 1, xsize(2)
+              y = (j + xstart(2) - 2) * dy - yly / 2._mytype
+              r1 = SQRT(y**2 + z**2)
 
-        if (r1.lt.0.5_mytype) then
-          mf = rho(1, j, k) * bxx1(j, k)
+              if (r1.lt.0.5_mytype) then
+                 mf = rho(1, j, k) * bxx1(j, k)
 
-          IF (z.GT.0._mytype) THEN
-            IF (y.GT.0._mytype) THEN
-              theta = ATAN(y / z)
-            ELSE IF (y.LT.0._mytype) THEN
-              theta = 2._mytype * PI - ATAN(-y / z)
-            ELSE
-              theta = 0._mytype
-            ENDIF
-          ELSE IF (z.LT.0._mytype) THEN
-            IF (y.GT.0._mytype) THEN
-              theta = PI - ATAN(y / (-z))
-            ELSE IF (y.LT.0._mytype) THEN
-              theta = PI + ATAN(y / z)
-            ELSE
-              theta = PI
-            ENDIF
-          ELSE
-            IF (y.GT.0._mytype) THEN
-              theta = 0.5_mytype * PI
-            ELSE IF (y.LT.0._mytype) THEN
-              theta = 1.5_mytype * PI
-            ELSE
-              theta = 0._mytype
-            ENDIF
-          ENDIF
+                 IF (z.GT.0._mytype) THEN
+                    IF (y.GT.0._mytype) THEN
+                       theta = ATAN(y / z)
+                    ELSE IF (y.LT.0._mytype) THEN
+                       theta = 2._mytype * PI - ATAN(-y / z)
+                    ELSE
+                       theta = 0._mytype
+                    ENDIF
+                 ELSE IF (z.LT.0._mytype) THEN
+                    IF (y.GT.0._mytype) THEN
+                       theta = PI - ATAN(y / (-z))
+                    ELSE IF (y.LT.0._mytype) THEN
+                       theta = PI + ATAN(y / z)
+                    ELSE
+                       theta = PI
+                    ENDIF
+                 ELSE
+                    IF (y.GT.0._mytype) THEN
+                       theta = 0.5_mytype * PI
+                    ELSE IF (y.LT.0._mytype) THEN
+                       theta = 1.5_mytype * PI
+                    ELSE
+                       theta = 0._mytype
+                    ENDIF
+                 ENDIF
 
-          !! Additional forcing
-          um = 0._mytype
-          DO n = 1, nmodes
-            um = um + SIN(2._mytype * PI * (t * freq) / (DBLE(n)) + theta)
-          ENDDO
-          um = 0.2_mytype * um / DBLE(nmodes)
-          IF (t.LT.1._mytype) THEN
-            um = um * SIN(t * (0.5_mytype * PI))
-          ENDIF
-          um = s * um
-          bxx1(j, k) = (1._mytype + um) * bxx1(j, k)
+                 !! Additional forcing
+                 um = 0._mytype
+                 DO n = 1, nmodes
+                    um = um + SIN(2._mytype * PI * (t * freq) / (DBLE(n)) + theta)
+                 ENDDO
+                 um = 0.2_mytype * um / DBLE(nmodes)
+                 IF (t.LT.1._mytype) THEN
+                    um = um * SIN(t * (0.5_mytype * PI))
+                 ENDIF
+                 um = s * um
+                 bxx1(j, k) = (1._mytype + um) * bxx1(j, k)
 
-          bxx1(j, k) = bxx1(j, k) + noise1 * (1._mytype - 2._mytype * bxo(j, k))
-          bxy1(j, k) = bxy1(j, k) + noise1 * (1._mytype - 2._mytype * byo(j, k))
-          bxz1(j, k) = bxz1(j, k) + noise1 * (1._mytype - 2._mytype * bzo(j, k))
-          bxx1(j, k) = MAX(bxx1(j, k), u2) ! Prevent backflow
-          
-          ! if ((mf * bxx1(j, k)).gt.0._mytype) then
-          !   rho(1, j, k) = mf / bxx1(j, k)
-          ! endif
-        endif ! End within jet
-      enddo
-    enddo
+                 bxx1(j, k) = bxx1(j, k) + noise1 * (1._mytype - 2._mytype * bxo(j, k))
+                 bxy1(j, k) = bxy1(j, k) + noise1 * (1._mytype - 2._mytype * byo(j, k))
+                 bxz1(j, k) = bxz1(j, k) + noise1 * (1._mytype - 2._mytype * bzo(j, k))
+                 bxx1(j, k) = MAX(bxx1(j, k), u2) ! Prevent backflow
 
-    if (iscalar==1) then
+                 ! if ((mf * bxx1(j, k)).gt.0._mytype) then
+                 !   rho(1, j, k) = mf / bxx1(j, k)
+                 ! endif
+              endif ! End within jet
+           enddo
+        enddo
+     endif
+
+     if (iscalar==1) then
       do k = 1, xsize(3)
         do j = 1, xsize(2)
           phi(1, j, k) = 1._mytype
@@ -1830,24 +1845,29 @@ subroutine init (ux1,uy1,uz1,rho1,temperature1,massfrac1,ep1,phi1,&
 
     if (isolvetemp.eq.0) then
        ! LMN: set density
-       do k = 1, xsize(3)
-          z = float(k + xstart(3) - 2) * dz
+       if (itype.eq.7) then
+          ! do k = 1, xsize(3)
+          !    z = float(k + xstart(3) - 2) * dz
           
-          ! p_front = 1._mytype
-          ! p_front = p_front + 0.2_mytype * SIN(2._mytype * PI * z / zlz)
-          do j = 1, xsize(2)
-             y = float(j + xstart(2) - 2) * dy - yly / 2._mytype
-             do i = 1, xsize(1)
-                x = float(i + xstart(1) - 2) * dx
+          !    ! p_front = 1._mytype
+          !    ! p_front = p_front + 0.2_mytype * SIN(2._mytype * PI * z / zlz)
+          !    do j = 1, xsize(2)
+          !       y = float(j + xstart(2) - 2) * dy - yly / 2._mytype
+          !       do i = 1, xsize(1)
+          !          x = float(i + xstart(1) - 2) * dx
                 
-                if (x.LT.p_front) then
-                   rho1(i, j, k) = dens2
-                else
-                   rho1(i, j, k) = dens1
-                endif
-             enddo
-          enddo
-       enddo
+          !          if (x.LT.p_front) then
+          !             rho1(i, j, k) = dens2
+          !          else
+          !             rho1(i, j, k) = dens1
+          !          endif
+          !       enddo
+          !    enddo
+          ! enddo
+          rho1(i, j, k) = dens2
+       else
+          rho1(:,:,:) = dens1
+       endif
     else
        temperature1(:,:,:) = 1._mytype
     endif

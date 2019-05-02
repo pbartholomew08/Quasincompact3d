@@ -41,6 +41,7 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
   USE param
   USE variables
   USE decomp_2d
+  USE var, ONLY : px1
 
   USE MPI
 
@@ -575,6 +576,27 @@ subroutine convdiff(ux1,uy1,uz1,rho1,mu1,ta1,tb1,tc1,td1,te1,tf1,tg1,th1,ti1,di1
  
  ! !! MMS Source term
  ! call momentum_source_mms(ta1,tb1,tc1)
+
+ if ((itype.eq.7).and.(itr.eq.1)) then
+    call random_number(bxo)
+    do k = 1, xsize(3)
+       z = real(k + xstart(3) - 2, mytype) * dz - 0.5_mytype * zlz
+       if (abs(z).lt.0.5_mytype) then
+          do j = 1, xsize(2)
+             bxx1(j, k) = ux1(1, j, k) + dt * (ta1(1, j, k) - px1(1, j, k)) / dens1 &
+                  + noise1 * (1._mytype - 2._mytype * bxo(j, k))
+             bxy1(j, k) = uy1(2, j, k)
+             bxz1(j, k) = uz1(2, j, k)
+          enddo
+       else
+          do j = 1, xsize(2)
+             bxx1(j, k) = 0.0_mytype
+             bxy1(j, k) = 0.0_mytype
+             bxz1(j, k) = 0.0_mytype
+          enddo
+       endif
+    enddo
+ endif
 
 end subroutine convdiff
 
